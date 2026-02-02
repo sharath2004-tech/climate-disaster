@@ -23,7 +23,7 @@ FROM nginx:alpine
 # Create a non-root user and set up directories with proper permissions
 RUN addgroup -g 1001 -S appuser && \
     adduser -S appuser -u 1001 && \
-    mkdir -p /tmp/nginx /app && \
+    mkdir -p /tmp/nginx/client_temp /tmp/nginx/proxy_temp /tmp/nginx/fastcgi_temp /tmp/nginx/uwsgi_temp /tmp/nginx/scgi_temp /app && \
     chown -R appuser:appuser /tmp/nginx /app /usr/share/nginx/html && \
     chmod -R 755 /tmp/nginx
 
