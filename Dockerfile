@@ -1,5 +1,4 @@
-# Multi-stage build for React + Vite application
-# Stage 1: Build the application
+# Build stage
 FROM node:20-alpine AS builder
 
 WORKDIR /app
@@ -7,9 +6,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install ALL dependencies (including dev dependencies for build)
-RUN npm ci && \
-    npm cache clean --force
+# Install dependencies
+RUN npm ci && npm cache clean --force
 
 # Copy source code
 COPY . .
@@ -17,88 +15,27 @@ COPY . .
 # Build the application
 RUN npm run build
 
-# Stage 2: Serve with Nginx (non-root compatible)
-FROM nginx:alpine
+# Production stage - Simple Node.js server
+FROM node:20-alpine
 
-# Create a non-root user and set up directories with proper permissions
-RUN addgroup -g 1001 -S appuser && \
-    adduser -S appuser -u 1001 && \
-    mkdir -p /tmp/nginx/client_temp /tmp/nginx/proxy_temp /tmp/nginx/fastcgi_temp /tmp/nginx/uwsgi_temp /tmp/nginx/scgi_temp /app && \
-    chown -R appuser:appuser /tmp/nginx /app /usr/share/nginx/html && \
-    chmod -R 755 /tmp/nginx
+WORKDIR /app
 
-# Copy built assets from builder
+# Install serve globally
+RUN npm install -g serve
+
+# Copy built files from builder
 COPY --from=builder /app/dist /app
 
-# Create nginx config that works without root
-RUN cat > /etc/nginx/nginx.conf <<EOF
-pid /tmp/nginx/nginx.pid;
-worker_processes auto;
-error_log /dev/stderr info;
-
-events {
-    worker_connections 1024;
-}
-
-http {
-    include /etc/nginx/mime.types;
-    default_type application/octet-stream;
-    
-    # Temp directories in writable location
-    client_body_temp_path /tmp/nginx/client_temp;
-    proxy_temp_path /tmp/nginx/proxy_temp;
-    fastcgi_temp_path /tmp/nginx/fastcgi_temp;
-    uwsgi_temp_path /tmp/nginx/uwsgi_temp;
-    scgi_temp_path /tmp/nginx/scgi_temp;
-    
-    access_log /dev/stdout;
-    sendfile on;
-    keepalive_timeout 65;
-    gzip on;
-    
-    server {
-        listen 10000;
-        server_name _;
-        
-        root /app;
-        index index.html;
-        
-        # Gzip compression
-        gzip on;
-        gzip_vary on;
-        gzip_types text/plain text/css text/xml text/javascript application/javascript application/json;
-        
-        # Security headers
-        add_header X-Frame-Options "SAMEORIGIN" always;
-        add_header X-Content-Type-Options "nosniff" always;
-        add_header X-XSS-Protection "1; mode=block" always;
-        
-        # SPA routing - serve index.html for all routes
-        location / {
-            try_files \$uri \$uri/ /index.html;
-        }
-        
-        # Cache static assets
-        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
-            expires 1y;
-            add_header Cache-Control "public, immutable";
-        }
-        
-        # Health check endpoint
-        location /health {
-            access_log off;
-            return 200 "healthy\n";
-            add_header Content-Type text/plain;
-        }
-    }
-}
-EOF
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001 && \
+    chown -R nodejs:nodejs /app
 
 # Switch to non-root user
-USER appuser
+USER nodejs
 
-# Expose port 10000 (Render's default)
+# Expose port 10000 (Render default)
 EXPOSE 10000
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Serve the static files
+CMD ["serve", "-s", "/app", "-l", "10000"]
