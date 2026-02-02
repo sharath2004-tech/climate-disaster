@@ -23,16 +23,16 @@ FROM nginx:alpine
 # Create a non-root user and set up directories with proper permissions
 RUN addgroup -g 1001 -S appuser && \
     adduser -S appuser -u 1001 && \
-    mkdir -p /var/cache/nginx /var/run /app && \
-    chown -R appuser:appuser /var/cache/nginx /var/run /app /usr/share/nginx/html && \
-    chmod -R 755 /var/cache/nginx /var/run
+    mkdir -p /tmp/nginx /app && \
+    chown -R appuser:appuser /tmp/nginx /app /usr/share/nginx/html && \
+    chmod -R 755 /tmp/nginx
 
 # Copy built assets from builder
 COPY --from=builder /app/dist /app
 
 # Create nginx config that works without root
 RUN cat > /etc/nginx/nginx.conf <<EOF
-pid /var/run/nginx.pid;
+pid /tmp/nginx/nginx.pid;
 worker_processes auto;
 error_log /dev/stderr info;
 
