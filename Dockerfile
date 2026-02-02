@@ -34,8 +34,8 @@ RUN addgroup -g 1001 -S nodejs && \
 # Switch to non-root user
 USER nodejs
 
-# Expose port 10000 (Render default)
-EXPOSE 10000
+# Expose port
+EXPOSE 3001
 
-# Serve the static files
-CMD ["serve", "-s", "/app", "-l", "10000"]
+# Serve the static files using PORT environment variable
+CMD ["sh", "-c", "serve -s /app -l ${PORT:-3001}"]
