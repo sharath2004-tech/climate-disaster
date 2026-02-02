@@ -36,13 +36,6 @@ pid /tmp/nginx/nginx.pid;
 worker_processes auto;
 error_log /dev/stderr info;
 
-# Temp directories in writable location
-client_body_temp_path /tmp/nginx/client_temp;
-proxy_temp_path /tmp/nginx/proxy_temp;
-fastcgi_temp_path /tmp/nginx/fastcgi_temp;
-uwsgi_temp_path /tmp/nginx/uwsgi_temp;
-scgi_temp_path /tmp/nginx/scgi_temp;
-
 events {
     worker_connections 1024;
 }
@@ -50,6 +43,13 @@ events {
 http {
     include /etc/nginx/mime.types;
     default_type application/octet-stream;
+    
+    # Temp directories in writable location
+    client_body_temp_path /tmp/nginx/client_temp;
+    proxy_temp_path /tmp/nginx/proxy_temp;
+    fastcgi_temp_path /tmp/nginx/fastcgi_temp;
+    uwsgi_temp_path /tmp/nginx/uwsgi_temp;
+    scgi_temp_path /tmp/nginx/scgi_temp;
     
     access_log /dev/stdout;
     sendfile on;
