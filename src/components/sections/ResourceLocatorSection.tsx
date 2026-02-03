@@ -7,11 +7,11 @@ import { useToast } from "@/hooks/use-toast";
 import { useResources } from "@/hooks/useAPI";
 import { resourcesAPI } from "@/lib/api";
 import {
-  AlertCircle, Battery, Clock, Droplets, Hospital, Loader2,
-  Locate,
-  MapPin,
-  Navigation,
-  Phone, Plus, Utensils, X
+    AlertCircle, Battery, Clock, Droplets, Hospital, Loader2,
+    Locate,
+    MapPin,
+    Navigation,
+    Phone, Plus, Utensils, X
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -62,7 +62,7 @@ export function ResourceLocatorSection() {
     limit: 50 
   });
 
-  const resources: Resource[] = data?.resources || data || [];
+  const resources: Resource[] = Array.isArray(data) ? data : (data?.resources || []);
 
   // Add resource form state
   const [form, setForm] = useState({
