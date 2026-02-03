@@ -1,11 +1,11 @@
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useAlerts } from "@/hooks/useAPI";
 import { alertsAPI } from "@/lib/api";
-import { useAuth } from "@/contexts/AuthContext";
 import { AlertCircle, AlertTriangle, Bell, BellOff, Check, Clock, Info, Loader2, MapPin, RefreshCw, Wifi, WifiOff } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 interface Alert {
   _id: string;
