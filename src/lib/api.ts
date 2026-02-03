@@ -116,7 +116,13 @@ export const reportsAPI = {
 // Resources API
 export const resourcesAPI = {
   getAll: (params?: { type?: string; availability?: string; limit?: number }) => {
-    const queryParams = new URLSearchParams(params as any).toString();
+    // Filter out undefined values to avoid sending "undefined" as a string
+    const filteredParams = Object.entries(params || {})
+      .filter(([_, value]) => value !== undefined)
+      .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
+    
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const queryParams = new URLSearchParams(filteredParams as any).toString();
     return apiCall(`/resources${queryParams ? `?${queryParams}` : ''}`);
   },
 

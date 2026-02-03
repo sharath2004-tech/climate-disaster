@@ -3,6 +3,8 @@ import dotenv from 'dotenv';
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import mongoose from 'mongoose';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 import EmergencyAlert from './models/EmergencyAlert.js';
 
@@ -15,7 +17,10 @@ import reportRoutes from './routes/reports.js';
 import resourceRoutes from './routes/resources.js';
 import userRoutes from './routes/users.js';
 
-dotenv.config();
+// Load .env from parent directory
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 const app = express();
 const PORT = process.env.PORT || 10000;
