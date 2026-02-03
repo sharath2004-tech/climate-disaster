@@ -12,8 +12,8 @@ mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
 const layerOptions = [
   { id: "alerts", label: "Active Alerts", icon: AlertTriangle, active: true, color: "#ef4444" },
   { id: "shelters", label: "Shelters", icon: Building, active: true, color: "#22c55e" },
-  { id: "reports", label: "Citizen Reports", icon: Users, active: false, color: "#f59e0b" },
-  { id: "resources", label: "Resources", icon: MapPin, active: false, color: "#3b82f6" },
+  { id: "reports", label: "Citizen Reports", icon: Users, active: true, color: "#f59e0b" },
+  { id: "resources", label: "Resources", icon: MapPin, active: true, color: "#3b82f6" },
 ];
 
 interface MapMarker {

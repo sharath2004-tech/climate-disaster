@@ -7,20 +7,65 @@ import { useToast } from "@/hooks/use-toast";
 import { useResources } from "@/hooks/useAPI";
 import { resourcesAPI } from "@/lib/api";
 import {
-    AlertCircle, Battery, Clock, Droplets, Hospital, Loader2,
+    AlertCircle, Clock, Droplets, Hospital, Loader2,
     Locate,
     MapPin,
     Navigation,
     Phone, Plus, Utensils, X
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+// Fix for default marker icons in Leaflet with webpack/vite
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
+// Custom marker icons for different resource types
+const createIcon = (color: string) => L.divIcon({
+  className: 'custom-marker',
+  html: `<div style="background-color: ${color}; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>`,
+  iconSize: [24, 24],
+  iconAnchor: [12, 12],
+  popupAnchor: [0, -12],
+});
+
+const markerColors: Record<string, string> = {
+  hospital: '#ef4444',
+  shelter: '#3b82f6',
+  'water-supply': '#06b6d4',
+  'food-bank': '#f59e0b',
+  pharmacy: '#22c55e',
+  'fire-station': '#dc2626',
+  'police-station': '#6366f1',
+  'emergency-service': '#ef4444',
+  other: '#6b7280',
+};
+
+// Component to recenter map when user location changes
+function RecenterMap({ center }: { center: [number, number] }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center, map.getZoom());
+  }, [center, map]);
+  return null;
+}
 
 const categories = [
   { id: "hospital", label: "Hospitals", icon: Hospital, color: "text-destructive" },
   { id: "shelter", label: "Shelters", icon: Hospital, color: "text-primary" },
-  { id: "water", label: "Water", icon: Droplets, color: "text-primary" },
-  { id: "food", label: "Food", icon: Utensils, color: "text-warning" },
-  { id: "power", label: "Power/Charging", icon: Battery, color: "text-success" },
+  { id: "water-supply", label: "Water", icon: Droplets, color: "text-primary" },
+  { id: "food-bank", label: "Food", icon: Utensils, color: "text-warning" },
+  { id: "pharmacy", label: "Pharmacy", icon: Hospital, color: "text-success" },
+  { id: "fire-station", label: "Fire Station", icon: AlertCircle, color: "text-destructive" },
+  { id: "police-station", label: "Police", icon: AlertCircle, color: "text-primary" },
+  { id: "emergency-service", label: "Emergency", icon: Phone, color: "text-destructive" },
 ];
 
 interface Resource {
@@ -30,7 +75,7 @@ interface Resource {
   location: {
     address?: string;
     city?: string;
-    coordinates?: {
+    coordinates?: [number, number] | {
       type?: string;
       coordinates: [number, number];
     };
@@ -43,8 +88,25 @@ interface Resource {
   capacity?: {
     total?: number;
     available?: number;
+    current?: number;
+    maximum?: number;
   };
   description?: string;
+  status?: string;
+}
+
+// Helper function to extract coordinates from resource
+function getResourceCoordinates(resource: Resource): [number, number] | null {
+  const coords = resource.location?.coordinates;
+  if (!coords) return null;
+  
+  // Handle both formats: [lng, lat] or { type: "Point", coordinates: [lng, lat] }
+  if (Array.isArray(coords)) {
+    return coords;
+  } else if (coords.coordinates && Array.isArray(coords.coordinates)) {
+    return coords.coordinates;
+  }
+  return null;
 }
 
 export function ResourceLocatorSection() {
@@ -176,11 +238,12 @@ export function ResourceLocatorSection() {
       const lat = parseFloat(form.lat) || 19.076;
       const lon = parseFloat(form.lon) || 72.8777;
 
-      // Use suggest endpoint for regular users (will be reviewed by admin)
+      // Use suggest endpoint - resources are immediately visible to everyone
       await resourcesAPI.suggest({
         name: form.name,
         type: form.type,
-        description: form.description || form.operatingHours, // Store hours in description if provided
+        description: form.description,
+        operatingHours: form.operatingHours,
         location: {
           type: "Point",
           coordinates: [lon, lat],
@@ -198,8 +261,8 @@ export function ResourceLocatorSection() {
       });
 
       toast({
-        title: "Resource Submitted",
-        description: "Your resource has been submitted for review by admins.",
+        title: "Resource Added Successfully!",
+        description: "Your resource is now visible to everyone on the map.",
       });
 
       // Reset form
@@ -419,28 +482,75 @@ export function ResourceLocatorSection() {
           <div className="mb-8 animate-fade-slide-in">
             <GlassCard className="p-0 overflow-hidden">
               <div className="relative w-full h-[400px]">
-                {/* Using OpenStreetMap embed */}
-                <iframe
-                  width="100%"
-                  height="100%"
-                  style={{ border: 0 }}
-                  loading="lazy"
-                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${
-                    (userLocation?.lng || 72.8777) - 0.1
-                  }%2C${
-                    (userLocation?.lat || 19.076) - 0.1
-                  }%2C${
-                    (userLocation?.lng || 72.8777) + 0.1
-                  }%2C${
-                    (userLocation?.lat || 19.076) + 0.1
-                  }&layer=mapnik&marker=${userLocation?.lat || 19.076}%2C${userLocation?.lng || 72.8777}`}
-                  title="Resources Map"
-                />
-                <div className="absolute top-4 right-4 bg-background/90 backdrop-blur px-3 py-2 rounded-lg">
+                <MapContainer
+                  center={[userLocation?.lat || 19.076, userLocation?.lng || 72.8777]}
+                  zoom={12}
+                  style={{ height: '100%', width: '100%' }}
+                  scrollWheelZoom={true}
+                >
+                  <TileLayer
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
+                  {userLocation && (
+                    <RecenterMap center={[userLocation.lat, userLocation.lng]} />
+                  )}
+                  {/* User location marker */}
+                  {userLocation && (
+                    <Marker 
+                      position={[userLocation.lat, userLocation.lng]}
+                      icon={L.divIcon({
+                        className: 'user-marker',
+                        html: `<div style="background-color: #3b82f6; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);"></div>`,
+                        iconSize: [16, 16],
+                        iconAnchor: [8, 8],
+                      })}
+                    >
+                      <Popup>Your Location</Popup>
+                    </Marker>
+                  )}
+                  {/* Resource markers */}
+                  {resources.map((resource) => {
+                    const coords = getResourceCoordinates(resource);
+                    if (!coords) return null;
+                    const [lng, lat] = coords;
+                    const color = markerColors[resource.type] || markerColors.other;
+                    return (
+                      <Marker
+                        key={resource._id}
+                        position={[lat, lng]}
+                        icon={createIcon(color)}
+                      >
+                        <Popup>
+                          <div className="p-1">
+                            <strong className="text-sm">{resource.name}</strong>
+                            <p className="text-xs text-gray-600 mt-1">
+                              {categories.find(c => c.id === resource.type)?.label || resource.type}
+                            </p>
+                            {resource.location?.address && (
+                              <p className="text-xs text-gray-500 mt-1">{resource.location.address}</p>
+                            )}
+                            <p className={`text-xs mt-1 ${
+                              resource.availability === 'available' ? 'text-green-600' : 'text-orange-600'
+                            }`}>
+                              {resource.availability}
+                            </p>
+                            {resource.contact?.phone && (
+                              <a href={`tel:${resource.contact.phone}`} className="text-xs text-blue-600 mt-1 block">
+                                📞 {resource.contact.phone}
+                              </a>
+                            )}
+                          </div>
+                        </Popup>
+                      </Marker>
+                    );
+                  })}
+                </MapContainer>
+                <div className="absolute top-4 right-4 bg-background/90 backdrop-blur px-3 py-2 rounded-lg z-[1000]">
                   <p className="text-sm font-medium">{resources.length} resources</p>
                 </div>
                 {/* Resource markers overlay info */}
-                <div className="absolute bottom-4 left-4 right-4">
+                <div className="absolute bottom-4 left-4 right-4 z-[1000]">
                   <GlassCard className="p-3 flex flex-wrap gap-2">
                     {categories.map(cat => {
                       const count = resources.filter(r => r.type === cat.id).length;
@@ -570,14 +680,17 @@ export function ResourceLocatorSection() {
                         Call
                       </Button>
                     )}
-                    {resource.location?.coordinates?.coordinates && (
+                    {getResourceCoordinates(resource) && (
                       <Button 
                         variant="default" 
                         size="sm" 
                         className="gap-1.5 flex-1"
                         onClick={() => {
-                          const [lng, lat] = resource.location.coordinates!.coordinates;
-                          window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`);
+                          const coords = getResourceCoordinates(resource);
+                          if (coords) {
+                            const [lng, lat] = coords;
+                            window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`);
+                          }
                         }}
                       >
                         <Navigation className="w-4 h-4" />

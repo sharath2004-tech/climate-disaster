@@ -76,18 +76,19 @@ router.post('/', auth, adminAuth, async (req, res) => {
   }
 });
 
-// Suggest a new resource (any authenticated user) - creates pending resource
+// Suggest a new resource (any authenticated user) - creates active resource visible to everyone
 router.post('/suggest', auth, async (req, res) => {
   try {
     const resource = new Resource({
       ...req.body,
-      status: 'pending', // Needs admin approval
+      status: 'active', // Immediately visible to everyone
+      verified: false, // Not verified yet
       suggestedBy: req.user._id,
       createdAt: new Date(),
     });
     await resource.save();
     res.status(201).json({ 
-      message: 'Resource suggestion submitted for review',
+      message: 'Resource added successfully and is now visible to everyone',
       resource 
     });
   } catch (error) {
