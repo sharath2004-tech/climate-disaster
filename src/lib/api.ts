@@ -75,6 +75,12 @@ export const alertsAPI = {
     apiCall(`/alerts/${id}`, {
       method: 'DELETE',
     }),
+
+  toggleNotifications: (id: string, enabled: boolean) =>
+    apiCall(`/alerts/${id}/notifications`, {
+      method: 'PATCH',
+      body: JSON.stringify({ enabled }),
+    }),
 };
 
 // Reports API

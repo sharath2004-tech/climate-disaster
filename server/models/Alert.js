@@ -60,6 +60,10 @@ const alertSchema = new mongoose.Schema({
     description: String,
     location: String,
   }],
+  notificationsEnabled: {
+    type: Boolean,
+    default: true, // Notifications are enabled by default when alert is created
+  },
   createdAt: {
     type: Date,
     default: Date.now,

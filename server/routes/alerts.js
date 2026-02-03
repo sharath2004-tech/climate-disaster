@@ -94,6 +94,33 @@ router.patch('/:id', auth, adminAuth, async (req, res) => {
   }
 });
 
+// Toggle notifications for an alert (admin only)
+router.patch('/:id/notifications', auth, adminAuth, async (req, res) => {
+  try {
+    const { enabled } = req.body;
+    
+    const alert = await Alert.findByIdAndUpdate(
+      req.params.id,
+      { 
+        notificationsEnabled: enabled,
+        updatedAt: new Date() 
+      },
+      { new: true }
+    );
+    
+    if (!alert) {
+      return res.status(404).json({ error: 'Alert not found' });
+    }
+    
+    res.json({ 
+      message: `Notifications ${enabled ? 'enabled' : 'disabled'} for alert`,
+      alert 
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Delete alert (admin only)
 router.delete('/:id', auth, adminAuth, async (req, res) => {
   try {

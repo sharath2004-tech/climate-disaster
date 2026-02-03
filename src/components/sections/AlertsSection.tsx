@@ -2,7 +2,9 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAlerts } from "@/hooks/useAPI";
-import { AlertCircle, AlertTriangle, Bell, Check, Clock, Info, Loader2, MapPin, RefreshCw, Wifi, WifiOff } from "lucide-react";
+import { alertsAPI } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
+import { AlertCircle, AlertTriangle, Bell, BellOff, Check, Clock, Info, Loader2, MapPin, RefreshCw, Wifi, WifiOff } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 
 interface Alert {
@@ -17,6 +19,7 @@ interface Alert {
   };
   createdAt: string;
   isRead?: boolean;
+  notificationsEnabled?: boolean;
 }
 
 const alertStyles = {
@@ -61,10 +64,12 @@ function formatTimeAgo(dateString: string): string {
 
 export function AlertsSection() {
   const { data, isLoading, error, refetch, isFetching } = useAlerts({ limit: 20 });
+  const { user } = useAuth();
   const [readAlerts, setReadAlerts] = useState<Set<string>>(new Set());
   const [isAutoRefresh, setIsAutoRefresh] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [previousAlertCount, setPreviousAlertCount] = useState(0);
+  const [togglingNotifications, setTogglingNotifications] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   // Auto-refresh alerts every 30 seconds
@@ -123,6 +128,36 @@ export function AlertsSection() {
       description: "This alert has been marked as read.",
     });
   };
+
+  const toggleNotifications = async (alertId: string, currentState: boolean) => {
+    setTogglingNotifications(prev => new Set([...prev, alertId]));
+    
+    try {
+      await alertsAPI.toggleNotifications(alertId, !currentState);
+      await refetch(); // Refresh alerts to get updated state
+      
+      toast({
+        title: !currentState ? "🔔 Notifications Enabled" : "🔕 Notifications Disabled",
+        description: !currentState 
+          ? "Push notifications are now enabled for this alert" 
+          : "Push notifications have been stopped for this alert",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to toggle notifications",
+        variant: "destructive",
+      });
+    } finally {
+      setTogglingNotifications(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(alertId);
+        return newSet;
+      });
+    }
+  };
+
+  const isAdmin = user?.role === 'admin' || user?.role === 'subadmin';
 
   if (isLoading) {
     return (
@@ -216,7 +251,15 @@ export function AlertsSection() {
                     {/* Content */}
                     <div className="flex-grow min-w-0">
                       <div className="flex items-start justify-between gap-4 mb-2">
-                        <h3 className="text-lg font-semibold text-foreground">{alert.title}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-lg font-semibold text-foreground">{alert.title}</h3>
+                          {alert.notificationsEnabled === false && isAdmin && (
+                            <span className="flex-shrink-0 px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium flex items-center gap-1">
+                              <BellOff className="w-3 h-3" />
+                              Notifications Off
+                            </span>
+                          )}
+                        </div>
                         {!isRead && (
                           <span className="flex-shrink-0 px-2 py-0.5 rounded-full bg-primary text-primary-foreground text-xs font-medium">
                             New
@@ -237,8 +280,28 @@ export function AlertsSection() {
                       </div>
                     </div>
 
-                    {/* Action */}
-                    <div className="flex-shrink-0">
+                    {/* Actions */}
+                    <div className="flex-shrink-0 flex flex-col gap-2">
+                      {isAdmin && (
+                        <Button
+                          size="sm"
+                          variant={alert.notificationsEnabled ? "default" : "outline"}
+                          className="gap-1.5"
+                          onClick={() => toggleNotifications(alert._id, alert.notificationsEnabled ?? true)}
+                          disabled={togglingNotifications.has(alert._id)}
+                        >
+                          {togglingNotifications.has(alert._id) ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : alert.notificationsEnabled ? (
+                            <Bell className="w-4 h-4" />
+                          ) : (
+                            <BellOff className="w-4 h-4" />
+                          )}
+                          <span className="hidden sm:inline">
+                            {alert.notificationsEnabled ? "Stop Notify" : "Enable Notify"}
+                          </span>
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant={isRead ? "ghost" : "outline"}
