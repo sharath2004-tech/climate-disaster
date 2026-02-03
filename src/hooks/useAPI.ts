@@ -2,7 +2,7 @@ import { alertsAPI, communityAPI, evacuationAPI, reportsAPI, resourcesAPI } from
 import { useQuery } from '@tanstack/react-query';
 
 // Alerts Hooks
-export const useAlerts = (params?: { severity?: string; type?: string; limit?: number }) => {
+export const useAlerts = (params?: { severity?: string; type?: string; limit?: number; includeDisabled?: string }) => {
   return useQuery({
     queryKey: ['alerts', params],
     queryFn: () => alertsAPI.getAll(params),

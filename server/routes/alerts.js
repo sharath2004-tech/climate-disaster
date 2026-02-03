@@ -7,11 +7,17 @@ const router = express.Router();
 // Get all active alerts
 router.get('/', async (req, res) => {
   try {
-    const { severity, type, limit = 50 } = req.query;
+    const { severity, type, limit = 50, includeDisabled } = req.query;
     
     const query = { status: 'active' };
     if (severity) query.severity = severity;
     if (type) query.type = type;
+    
+    // Only show alerts with notifications enabled unless user is admin
+    // includeDisabled='true' is passed when admin requests all alerts
+    if (includeDisabled !== 'true') {
+      query.notificationsEnabled = { $ne: false }; // Show only enabled notifications
+    }
 
     const alerts = await Alert.find(query)
       .sort({ createdAt: -1 })
@@ -26,13 +32,13 @@ router.get('/', async (req, res) => {
 // Get alerts near a location
 router.get('/nearby', async (req, res) => {
   try {
-    const { longitude, latitude, radius = 10 } = req.query;
+    const { longitude, latitude, radius = 10, includeDisabled } = req.query;
 
     if (!longitude || !latitude) {
       return res.status(400).json({ error: 'Longitude and latitude are required' });
     }
 
-    const alerts = await Alert.find({
+    const query = {
       status: 'active',
       'location.coordinates': {
         $near: {
@@ -43,7 +49,14 @@ router.get('/nearby', async (req, res) => {
           $maxDistance: radius * 1000, // Convert km to meters
         },
       },
-    });
+    };
+    
+    // Only show alerts with notifications enabled unless user is admin
+    if (includeDisabled !== 'true') {
+      query.notificationsEnabled = { $ne: false };
+    }
+
+    const alerts = await Alert.find(query);
 
     res.json(alerts);
   } catch (error) {

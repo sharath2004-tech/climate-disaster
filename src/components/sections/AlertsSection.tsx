@@ -63,8 +63,15 @@ function formatTimeAgo(dateString: string): string {
 }
 
 export function AlertsSection() {
-  const { data, isLoading, error, refetch, isFetching } = useAlerts({ limit: 20 });
   const { user } = useAuth();
+  const isAdmin = user?.role === 'admin' || user?.role === 'subadmin';
+  
+  // Admins see all alerts including those with notifications disabled
+  const { data, isLoading, error, refetch, isFetching } = useAlerts({ 
+    limit: 20,
+    ...(isAdmin && { includeDisabled: 'true' })
+  });
+  
   const [readAlerts, setReadAlerts] = useState<Set<string>>(new Set());
   const [isAutoRefresh, setIsAutoRefresh] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
@@ -92,22 +99,25 @@ export function AlertsSection() {
   useEffect(() => {
     // API returns array directly, not wrapped in object
     const alerts: Alert[] = Array.isArray(data) ? data : (data?.alerts || []);
-    const unreadCount = alerts.filter(a => !readAlerts.has(a._id)).length;
     
-    // Detect new alerts
-    if (previousAlertCount > 0 && alerts.length > previousAlertCount) {
-      const newAlertsCount = alerts.length - previousAlertCount;
+    // Only count and notify for alerts with notifications enabled (or undefined for backwards compatibility)
+    const activeAlerts = alerts.filter(a => a.notificationsEnabled !== false);
+    const unreadCount = activeAlerts.filter(a => !readAlerts.has(a._id)).length;
+    
+    // Detect new alerts (only those with notifications enabled)
+    if (previousAlertCount > 0 && activeAlerts.length > previousAlertCount) {
+      const newAlertsCount = activeAlerts.length - previousAlertCount;
       toast({
         title: `🔔 ${newAlertsCount} New Alert${newAlertsCount > 1 ? 's' : ''}`,
         description: "Check the latest disaster alerts below",
       });
     }
     
-    setPreviousAlertCount(alerts.length);
+    setPreviousAlertCount(activeAlerts.length);
     
-    if (unreadCount > 0 && alerts.length > 0) {
-      // Check if any critical alerts
-      const criticalAlerts = alerts.filter(a => 
+    if (unreadCount > 0 && activeAlerts.length > 0) {
+      // Check if any critical alerts with notifications enabled
+      const criticalAlerts = activeAlerts.filter(a => 
         a.severity === 'critical' && !readAlerts.has(a._id)
       );
       

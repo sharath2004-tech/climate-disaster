@@ -43,8 +43,14 @@ export const authAPI = {
 
 // Alerts API
 export const alertsAPI = {
-  getAll: (params?: { severity?: string; type?: string; limit?: number }) => {
-    const queryParams = new URLSearchParams(params as any).toString();
+  getAll: (params?: { severity?: string; type?: string; limit?: number; includeDisabled?: string }) => {
+    // Filter out undefined values
+    const filteredParams = Object.entries(params || {})
+      .filter(([_, value]) => value !== undefined)
+      .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
+    
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const queryParams = new URLSearchParams(filteredParams as any).toString();
     return apiCall(`/alerts${queryParams ? `?${queryParams}` : ''}`);
   },
 
