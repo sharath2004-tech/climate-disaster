@@ -5,8 +5,9 @@ services:
     runtime: node
     region: oregon
     plan: free
-    buildCommand: cd server && npm install
-    startCommand: cd server && node server.js
+    rootDir: server
+    buildCommand: npm install
+    startCommand: node server.js
     envVars:
       - key: NODE_ENV
         value: production
@@ -15,26 +16,7 @@ services:
       - key: MONGODB_URI
         sync: false
       - key: JWT_SECRET
-        generateValue: true
+        sync: false
       - key: FRONTEND_URL
         sync: false
-    healthCheckPath: /api/health
-
-  # Frontend Service
-  - type: web
-    name: climate-disaster-frontend
-    runtime: docker
-    region: oregon
-    plan: free
-    dockerfilePath: ./Dockerfile
-    envVars:
-      - key: PORT
-        value: 3001
-      - key: VITE_API_URL
-        value: https://climate-disaster-backend.onrender.com/api
-      - key: VITE_MAPBOX_TOKEN
-        sync: false
-      - key: VITE_WEATHER_API_KEY
-        sync: false
-      - key: VITE_HUGGINGFACE_API_KEY
-        sync: false
+    healthCheckPath: /health
