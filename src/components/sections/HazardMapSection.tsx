@@ -1,10 +1,10 @@
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
 import { alertsAPI, reportsAPI, resourcesAPI } from "@/lib/api";
-import { AlertTriangle, Building, Layers, Loader2, Locate, MapPin, Users, ZoomIn, ZoomOut, Navigation, Filter, RefreshCw } from "lucide-react";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { AlertTriangle, Building, Filter, Layers, Loader2, Locate, MapPin, Navigation, RefreshCw, Users, ZoomIn, ZoomOut } from "lucide-react";
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { useCallback, useEffect, useRef, useState } from "react";
 
 // Set Mapbox access token
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || '';

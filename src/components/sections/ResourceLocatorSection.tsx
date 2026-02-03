@@ -6,6 +6,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useResources } from "@/hooks/useAPI";
 import { resourcesAPI } from "@/lib/api";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import {
     AlertCircle, Clock, Droplets, Hospital, Loader2,
     Locate,
@@ -14,9 +16,7 @@ import {
     Phone, Plus, Utensils, X
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 
 // Fix for default marker icons in Leaflet with webpack/vite
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
