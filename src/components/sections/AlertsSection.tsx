@@ -167,8 +167,6 @@ export function AlertsSection() {
     }
   };
 
-  const isAdmin = user?.role === 'admin' || user?.role === 'subadmin';
-
   if (isLoading) {
     return (
       <section className="py-20 px-4">

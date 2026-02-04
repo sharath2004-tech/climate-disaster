@@ -1,0 +1,27 @@
+# Render Blueprint for Backend Deployment
+# Copy this to render.yaml and update values
+
+services:
+  - type: web
+    name: climate-disaster-backend
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: cd server && npm install
+    startCommand: cd server && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        sync: false  # Set in Render dashboard
+      - key: JWT_SECRET
+        generateValue: true
+      - key: VITE_OPENROUTER_API_KEY
+        sync: false  # Set in Render dashboard
+      - key: OPENROUTER_API_KEY
+        sync: false  # Set in Render dashboard
+      - key: FRONTEND_URL
+        value: https://your-frontend.vercel.app
+    healthCheckPath: /health

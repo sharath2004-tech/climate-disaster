@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 import EmergencyAlert from './models/EmergencyAlert.js';
 
 import adminRoutes from './routes/admin.js';
+import aiRoutes from './routes/ai.js';
 import alertRoutes from './routes/alerts.js';
 import authRoutes from './routes/auth.js';
 import communityRoutes from './routes/community.js';
@@ -16,6 +17,7 @@ import evacuationRoutes from './routes/evacuation.js';
 import reportRoutes from './routes/reports.js';
 import resourceRoutes from './routes/resources.js';
 import userRoutes from './routes/users.js';
+import weatherRoutes from './routes/weather.js';
 
 // Load .env from parent directory
 const __filename = fileURLToPath(import.meta.url);
@@ -38,7 +40,12 @@ if (process.env.NODE_ENV === 'production') {
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5173',
-  'https://skynetra.vercel.app'
+  'http://localhost:8080',
+  'http://localhost:8081',
+  'https://skynetra.vercel.app',
+  // ADD YOUR PRODUCTION DOMAINS HERE:
+  // 'https://your-app.vercel.app',
+  // 'https://your-app.netlify.app',
 ];
 
 app.use(
@@ -93,11 +100,13 @@ mongoose
    ROUTES
 -------------------------------------------------- */
 app.use('/api/auth', authRoutes);
+app.use('/api/ai', aiRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/resources', resourceRoutes);
 app.use('/api/evacuation', evacuationRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/weather', weatherRoutes);
 app.use('/api/community', communityRoutes);
 app.use('/api/admin', adminRoutes);
 

@@ -13,11 +13,11 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAlerts } from '@/hooks/useAPI';
 import {
-    AlertTriangle,
-    Bot,
-    Cloud,
-    Loader2, MapPin, Mic, MicOff,
-    Send, User, Volume2, VolumeX
+  AlertTriangle,
+  Bot,
+  Cloud,
+  Loader2, MapPin, Mic, MicOff,
+  Send, User, Volume2, VolumeX
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
