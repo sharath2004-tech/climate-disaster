@@ -4,7 +4,6 @@ Handles real-time disaster event processing, weather data fusion, and ML predict
 """
 
 import pathway as pw
-from pathway.xpacks.llm import embedders, splitters
 import os
 import json
 import requests
