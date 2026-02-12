@@ -249,18 +249,18 @@ class PathwayDisasterProcessor:
         self.weather_fetcher = WeatherDataFetcher(OPENWEATHER_API_KEY)
         self.risk_analyzer = DisasterRiskAnalyzer()
         
-        # Major cities to monitor (expand this list)
+        # Major Indian cities to monitor (north, south, east, west, central)
         self.monitored_locations = [
-            {"lat": 40.7128, "lon": -74.0060, "name": "New York"},
-            {"lat": 34.0522, "lon": -118.2437, "name": "Los Angeles"},
-            {"lat": 41.8781, "lon": -87.6298, "name": "Chicago"},
-            {"lat": 29.7604, "lon": -95.3698, "name": "Houston"},
-            {"lat": 33.4484, "lon": -112.0740, "name": "Phoenix"},
-            {"lat": 39.7392, "lon": -104.9903, "name": "Denver"},
-            {"lat": 47.6062, "lon": -122.3321, "name": "Seattle"},
-            {"lat": 25.7617, "lon": -80.1918, "name": "Miami"},
-            {"lat": 29.9511, "lon": -90.0715, "name": "New Orleans"},
-            {"lat": 32.7767, "lon": -96.7970, "name": "Dallas"},
+            {"lat": 28.6139, "lon": 77.2090, "name": "Delhi"},           # North
+            {"lat": 30.7333, "lon": 76.7794, "name": "Chandigarh"},     # North
+            {"lat": 19.0760, "lon": 72.8777, "name": "Mumbai"},         # West
+            {"lat": 23.0225, "lon": 72.5714, "name": "Ahmedabad"},      # West
+            {"lat": 22.5726, "lon": 88.3639, "name": "Kolkata"},        # East
+            {"lat": 26.1445, "lon": 91.7362, "name": "Guwahati"},       # East
+            {"lat": 12.9716, "lon": 77.5946, "name": "Bengaluru"},      # South
+            {"lat": 13.0827, "lon": 80.2707, "name": "Chennai"},        # South
+            {"lat": 17.3850, "lon": 78.4867, "name": "Hyderabad"},      # South/Central
+            {"lat": 23.2599, "lon": 77.4126, "name": "Bhopal"},         # Central
         ]
     
     def process_weather_stream(self):
