@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # Frontend (React + Vite)
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - VITE_PATHWAY_API_URL=http://pathway-service:8080
+      - VITE_API_URL=http://backend:3000
+    depends_on:
+      - pathway-service
+      - backend
+    networks:
+      - app-network
+
+  # Backend (Express + MongoDB Atlas)
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      # MongoDB Atlas URI (shared with Pathway service)
+      - MONGODB_URI=${MONGODB_URI}
+      - JWT_SECRET=${JWT_SECRET}
+      - PORT=3000
+      - NODE_ENV=production
+    networks:
+      - app-network
+
+  # Pathway Service (Real-time Processing)
+  pathway-service:
+    build:
+      context: ./pathway-service
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - OPENWEATHER_API_KEY=${OPENWEATHER_API_KEY}
+      # Same MongoDB Atlas URI as backend
+      - MONGODB_URI=${MONGODB_URI}
+      - PORT=8080
+    networks:
+      - app-network
+    restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge
+
+# NOTE: Using MongoDB Atlas (cloud) - no local MongoDB needed
+# Your connection string in .env should look like:
+# MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/climate-disaster

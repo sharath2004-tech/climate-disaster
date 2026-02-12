@@ -1,0 +1,8 @@
+pathway
+requests
+numpy
+python-dotenv
+pymongo
+flask
+flask-cors
+waitress
