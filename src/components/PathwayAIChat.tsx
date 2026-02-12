@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { useAlerts, useRiskPredictions } from '@/hooks/usePathway';
+import PathwayService from '@/services/pathwayService';
 import {
   AlertTriangle,
   Bell,
@@ -41,6 +42,16 @@ interface Message {
   timestamp: Date;
   type?: 'alert' | 'prediction' | 'normal';
   data?: unknown;
+}
+
+interface WeatherData {
+  city_name?: string;
+  location: string;
+  temperature: number;
+  humidity: number;
+  weather_condition: string;
+  wind_speed: number;
+  pressure: number;
 }
 
 interface SpeechRecognitionEvent extends Event {
@@ -253,12 +264,38 @@ export default function PathwayAIChat() {
         let responseContent = '';
 
         if (isPathwayStatusQuery) {
-          // Show comprehensive Pathway status
-          responseContent = `✅ **Pathway Real-time Intelligence is ACTIVE!**\n\n`;
-          responseContent += `📊 **Current Status:**\n`;
-          responseContent += `🌐 Service: Operational on Render\n`;
-          responseContent += `🔄 Update Frequency: Every 5 minutes\n`;
-          responseContent += `📍 Monitoring: 10 US cities\n\n`;
+          // Fetch real weather data to show actual cities
+          try {
+            const weatherData = await PathwayService.getWeather();
+            const cities = weatherData.data?.map((w: WeatherData) => w.city_name || w.location).filter(Boolean) || [];
+            
+            responseContent = `✅ **Pathway Real-time Intelligence is ACTIVE!**\n\n`;
+            responseContent += `📊 **Current Status:**\n`;
+            responseContent += `🌐 Service: Operational on Render\n`;
+            responseContent += `🔄 Update Frequency: Every 5 minutes\n`;
+            responseContent += `📍 Monitoring: 10 Indian Cities\n\n`;
+            
+            if (cities.length > 0) {
+              responseContent += `🇮🇳 **Monitored Cities:**\n`;
+              responseContent += cities.map((city: string) => `• ${city}`).join('\n');
+              responseContent += `\n\n`;
+            }
+            
+            if (weatherData.data && weatherData.data.length > 0) {
+              responseContent += `🌤️ **Latest Weather Data:**\n`;
+              weatherData.data.slice(0, 5).forEach((w: WeatherData) => {
+                const cityName = w.city_name || w.location;
+                responseContent += `📍 ${cityName}: ${w.temperature.toFixed(1)}°C, ${w.humidity}% humidity, ${w.weather_condition}\n`;
+              });
+              responseContent += `\n`;
+            }
+          } catch (err) {
+            responseContent = `✅ **Pathway Real-time Intelligence is ACTIVE!**\n\n`;
+            responseContent += `📊 **Current Status:**\n`;
+            responseContent += `🌐 Service: Operational on Render\n`;
+            responseContent += `🔄 Update Frequency: Every 5 minutes\n`;
+            responseContent += `📍 Monitoring: 10 Indian cities\n\n`;
+          }
 
           if (alerts.length > 0) {
             responseContent += `⚠️ **Active Alerts (${alerts.length}):**\n`;
@@ -279,14 +316,22 @@ export default function PathwayAIChat() {
             responseContent += `✅ **All Clear!** No significant risks detected at this time.\n`;
           }
         } else if (isWeatherQuery) {
-          responseContent = `🌤️ **Real-time Weather Data from Pathway:**\n\n`;
-          if (predictions.length > 0) {
-            predictions.slice(0, 5).forEach(p => {
-              responseContent += `📍 **${p.location}**\n`;
-              responseContent += `   Risk: ${(p.risk_score * 100).toFixed(1)}% | ${p.predicted_event_type}\n\n`;
-            });
-          } else {
-            responseContent += `All monitored locations showing normal conditions.\n`;
+          try {
+            const weatherData = await PathwayService.getWeather();
+            responseContent = `🌤️ **Real-time Weather Data from Pathway:**\n\n`;
+            
+            if (weatherData.data && weatherData.data.length > 0) {
+              weatherData.data.forEach((w: WeatherData) => {
+                const cityName = w.city_name || w.location;
+                responseContent += `📍 **${cityName}**\n`;
+                responseContent += `   🌡️ ${w.temperature.toFixed(1)}°C | 💧 ${w.humidity}% | ${w.weather_condition}\n`;
+                responseContent += `   🌬️ Wind: ${w.wind_speed} m/s | 🔽 Pressure: ${w.pressure} hPa\n\n`;
+              });
+            } else {
+              responseContent += `No weather data available at this time.\n`;
+            }
+          } catch (err) {
+            responseContent = `Unable to fetch weather data. Please try again.\n`;
           }
         } else if (isAlertQuery) {
           if (alerts.length > 0) {

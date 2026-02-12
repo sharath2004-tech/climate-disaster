@@ -99,7 +99,8 @@ class WeatherDataFetcher:
                 
                 weather_data.append({
                     "timestamp": int(datetime.now().timestamp()),
-                    "location": f"{loc['lat']:.2f},{loc['lon']:.2f}",
+                    "location": loc.get("name", f"{loc['lat']:.2f},{loc['lon']:.2f}"),
+                    "city_name": loc.get("name", "Unknown"),
                     "latitude": loc["lat"],
                     "longitude": loc["lon"],
                     "temperature": data["main"]["temp"],
@@ -217,7 +218,8 @@ class DisasterRiskAnalyzer:
         max_risk_type = max(risks.items(), key=lambda x: x[1])
         
         return {
-            "location": weather["location"],
+            "location": weather.get("city_name", weather["location"]),
+            "city_name": weather.get("city_name", "Unknown"),
             "latitude": weather["latitude"],
             "longitude": weather["longitude"],
             "timestamp": weather["timestamp"],
