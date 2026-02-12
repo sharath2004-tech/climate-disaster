@@ -1,0 +1,505 @@
+/**
+ * Pathway-Integrated AI Chatbot with Real-time Notifications
+ * 
+ * Features:
+ * - Automatic alert notifications from Pathway
+ * - Real-time risk prediction updates
+ * - Conversational data display
+ * - Proactive disaster warnings
+ * - Voice input/output support
+ */
+
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
+import { useAlerts, useRiskPredictions } from '@/hooks/usePathway';
+import {
+  AlertTriangle,
+  Bell,
+  Bot,
+  Loader2,
+  MapPin,
+  Mic,
+  MicOff,
+  Send,
+  TrendingUp,
+  User,
+  Volume2,
+  VolumeX,
+  Zap
+} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
+interface Message {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: Date;
+  type?: 'alert' | 'prediction' | 'normal';
+  data?: unknown;
+}
+
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionInstance extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onstart: (() => void) | null;
+  onend: (() => void) | null;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  start: () => void;
+  stop: () => void;
+}
+
+// Voice recognition hook
+const useVoiceRecognition = () => {
+  const [isListening, setIsListening] = useState(false);
+  const [transcript, setTranscript] = useState('');
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+
+  const startListening = useCallback(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    
+    if (!SpeechRecognitionAPI) {
+      toast.error('Voice input not supported in your browser');
+      return;
+    }
+
+    const recognition = new SpeechRecognitionAPI();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const result = event.results[event.results.length - 1];
+      setTranscript(result[0].transcript);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  }, []);
+
+  const stopListening = useCallback(() => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+  }, []);
+
+  return { isListening, transcript, startListening, stopListening, setTranscript };
+};
+
+// Text-to-speech hook
+const useTextToSpeech = () => {
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  const speak = useCallback((text: string) => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.onstart = () => setIsSpeaking(true);
+      utterance.onend = () => setIsSpeaking(false);
+      utterance.onerror = () => setIsSpeaking(false);
+      window.speechSynthesis.speak(utterance);
+    }
+  }, []);
+
+  const stopSpeaking = useCallback(() => {
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+  }, []);
+
+  return { isSpeaking, speak, stopSpeaking };
+};
+
+export default function PathwayAIChat() {
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      role: 'assistant',
+      content: '👋 Hi! I\'m your AI disaster assistant powered by Pathway real-time intelligence. I\'ll notify you about emerging risks and alerts automatically!',
+      timestamp: new Date(),
+      type: 'normal'
+    }
+  ]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const lastAlertIdRef = useRef<string | null>(null);
+  const lastPredictionRef = useRef<string | null>(null);
+
+  // Pathway hooks
+  const { alerts, loading: alertsLoading } = useAlerts();
+  const { predictions, loading: predictionsLoading } = useRiskPredictions(0.6);
+
+  // Voice features
+  const { isListening, transcript, startListening, stopListening, setTranscript } = useVoiceRecognition();
+  const { isSpeaking, speak, stopSpeaking } = useTextToSpeech();
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
+
+  // Handle voice input
+  useEffect(() => {
+    if (transcript && !isListening) {
+      setInput(transcript);
+      setTranscript('');
+    }
+  }, [transcript, isListening, setTranscript]);
+
+  // Monitor for new alerts and notify
+  useEffect(() => {
+    if (!alertsLoading && alerts.length > 0 && notificationsEnabled) {
+      const latestAlert = alerts[0];
+      
+      if (lastAlertIdRef.current !== latestAlert.alert_id) {
+        lastAlertIdRef.current = latestAlert.alert_id;
+        
+        const alertMessage: Message = {
+          role: 'system',
+          content: `🚨 **NEW ALERT** - ${latestAlert.alert_level.toUpperCase()}\n\n📍 **Location:** ${latestAlert.location}\n⚠️ **Event:** ${latestAlert.event_type}\n📊 **Risk Score:** ${(latestAlert.risk_score * 100).toFixed(0)}%\n\n${latestAlert.message}\n\n👥 **Population Affected:** ${latestAlert.population_affected.toLocaleString()}`,
+          timestamp: new Date(),
+          type: 'alert',
+          data: latestAlert
+        };
+        
+        setMessages(prev => [...prev, alertMessage]);
+        
+        // Voice notification
+        const alertText = `New ${latestAlert.alert_level} alert for ${latestAlert.location}. ${latestAlert.event_type} detected with ${(latestAlert.risk_score * 100).toFixed(0)} percent risk. ${latestAlert.message}`;
+        speak(alertText);
+        
+        // Browser notification
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('🚨 Disaster Alert', {
+            body: `${latestAlert.location}: ${latestAlert.event_type}`,
+            icon: '/icon-alert.png',
+            tag: latestAlert.alert_id
+          });
+        }
+      }
+    }
+  }, [alerts, alertsLoading, notificationsEnabled, speak]);
+
+  // Monitor for high-risk predictions
+  useEffect(() => {
+    if (!predictionsLoading && predictions.length > 0 && notificationsEnabled) {
+      const highestRisk = predictions[0];
+      const predictionKey = `${highestRisk.location}-${highestRisk.predicted_event_type}`;
+      
+      if (lastPredictionRef.current !== predictionKey && highestRisk.risk_score > 0.7) {
+        lastPredictionRef.current = predictionKey;
+        
+        const predictionMessage: Message = {
+          role: 'system',
+          content: `📊 **HIGH RISK PREDICTION**\n\n📍 **Location:** ${highestRisk.location}\n🔮 **Predicted Event:** ${highestRisk.predicted_event_type}\n📈 **Risk Score:** ${(highestRisk.risk_score * 100).toFixed(1)}%\n⏰ **Time to Event:** ${highestRisk.time_to_event_hours}h\n✅ **Confidence:** ${(highestRisk.confidence * 100).toFixed(0)}%\n\n💡 **Recommended Actions:**\n${highestRisk.recommended_actions}`,
+          timestamp: new Date(),
+          type: 'prediction',
+          data: highestRisk
+        };
+        
+        setMessages(prev => [...prev, predictionMessage]);
+      }
+    }
+  }, [predictions, predictionsLoading, notificationsEnabled]);
+
+  // Request notification permission
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  // Send message to AI
+  const sendMessage = async () => {
+    if (!input.trim() || loading) return;
+
+    const userMessage: Message = {
+      role: 'user',
+      content: input,
+      timestamp: new Date(),
+      type: 'normal'
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
+    setLoading(true);
+
+    try {
+      // Check if user is asking about Pathway data
+      const isPathwayQuery = /alert|risk|prediction|danger|safe|weather|disaster|evacuation/i.test(input);
+      
+      let context = '';
+      if (isPathwayQuery) {
+        // Include Pathway context
+        const alertsContext = alerts.slice(0, 3).map(a => 
+          `Alert: ${a.location} - ${a.event_type} (Risk: ${(a.risk_score * 100).toFixed(0)}%)`
+        ).join('\n');
+        
+        const predictionsContext = predictions.slice(0, 3).map(p => 
+          `Prediction: ${p.location} - ${p.predicted_event_type} (Risk: ${(p.risk_score * 100).toFixed(1)}%, ${p.time_to_event_hours}h)`
+        ).join('\n');
+        
+        context = `\n\nCurrent Pathway Real-time Data:\n${alertsContext}\n${predictionsContext}`;
+      }
+
+      // Call AI API
+      const response = await fetch(`${API_BASE}/ai/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: input + context,
+          conversationHistory: messages.slice(-5).map(m => ({
+            role: m.role === 'system' ? 'assistant' : m.role,
+            content: m.content
+          }))
+        })
+      });
+
+      if (!response.ok) throw new Error('Failed to get AI response');
+
+      const data = await response.json();
+      
+      const assistantMessage: Message = {
+        role: 'assistant',
+        content: data.response || data.message || 'I apologize, but I could not generate a response.',
+        timestamp: new Date(),
+        type: 'normal'
+      };
+
+      setMessages(prev => [...prev, assistantMessage]);
+      
+      // Speak response if enabled
+      if (isSpeaking) {
+        speak(assistantMessage.content.replace(/[*#]/g, ''));
+      }
+
+    } catch (error) {
+      console.error('Chat error:', error);
+      toast.error('Failed to send message');
+      
+      const errorMessage: Message = {
+        role: 'assistant',
+        content: 'I apologize, but I encountered an error. Please try again.',
+        timestamp: new Date(),
+        type: 'normal'
+      };
+      
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Quick action buttons
+  const quickActions = useMemo(() => [
+    { label: '📊 Show Current Alerts', query: 'Show me all current alerts' },
+    { label: '🔮 Risk Predictions', query: 'What are the risk predictions?' },
+    { label: '🗺️ Safe Locations', query: 'Where are the safe locations near me?' },
+    { label: '🚨 Emergency Help', query: 'I need emergency help' },
+    { label: '📡 Pathway Status', query: 'Is Pathway working? Show me the latest data' }
+  ], []);
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  return (
+    <Card className="flex flex-col h-[600px] max-w-4xl mx-auto shadow-lg">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Bot className="w-8 h-8" />
+            <Zap className="w-4 h-4 absolute -top-1 -right-1 text-yellow-300 animate-pulse" />
+          </div>
+          <div>
+            <h2 className="font-bold text-lg">AI Disaster Assistant</h2>
+            <p className="text-xs opacity-90 flex items-center gap-2">
+              <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+              Powered by Pathway Real-time Intelligence
+            </p>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Badge variant={notificationsEnabled ? "default" : "secondary"} className="cursor-pointer">
+            <Bell className="w-3 h-3 mr-1" />
+            {alerts.length} Active
+          </Badge>
+          
+          <Button
+            size="sm"
+            variant={notificationsEnabled ? "secondary" : "ghost"}
+            onClick={() => setNotificationsEnabled(!notificationsEnabled)}
+          >
+            {notificationsEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+          </Button>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="flex gap-2 p-3 border-b overflow-x-auto">
+        {quickActions.map((action, idx) => (
+          <Button
+            key={idx}
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setInput(action.query);
+              setTimeout(sendMessage, 100);
+            }}
+            className="whitespace-nowrap text-xs"
+          >
+            {action.label}
+          </Button>
+        ))}
+      </div>
+
+      {/* Messages */}
+      <ScrollArea className="flex-1 p-4">
+        <div className="space-y-4">
+          {messages.map((message, idx) => (
+            <div
+              key={idx}
+              className={`flex gap-3 ${
+                message.role === 'user' ? 'justify-end' : 'justify-start'
+              }`}
+            >
+              {message.role !== 'user' && (
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                  message.type === 'alert' ? 'bg-red-600' : 
+                  message.type === 'prediction' ? 'bg-orange-600' : 
+                  'bg-blue-600'
+                }`}>
+                  {message.type === 'alert' ? <AlertTriangle className="w-4 h-4 text-white" /> :
+                   message.type === 'prediction' ? <TrendingUp className="w-4 h-4 text-white" /> :
+                   <Bot className="w-4 h-4 text-white" />}
+                </div>
+              )}
+              
+              <div
+                className={`max-w-[70%] rounded-lg p-3 ${
+                  message.role === 'user'
+                    ? 'bg-blue-600 text-white'
+                    : message.type === 'alert'
+                    ? 'bg-red-50 border border-red-200'
+                    : message.type === 'prediction'
+                    ? 'bg-orange-50 border border-orange-200'
+                    : 'bg-gray-100 text-gray-900'
+                }`}
+              >
+                <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                  {message.content}
+                </div>
+                <div className="text-xs opacity-70 mt-2">
+                  {message.timestamp.toLocaleTimeString()}
+                </div>
+              </div>
+              
+              {message.role === 'user' && (
+                <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
+                  <User className="w-4 h-4 text-white" />
+                </div>
+              )}
+            </div>
+          ))}
+          
+          {loading && (
+            <div className="flex gap-3 justify-start">
+              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
+                <Bot className="w-4 h-4 text-white" />
+              </div>
+              <div className="bg-gray-100 rounded-lg p-3">
+                <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+              </div>
+            </div>
+          )}
+          
+          <div ref={scrollRef} />
+        </div>
+      </ScrollArea>
+
+      {/* Pathway Status Bar */}
+      {!alertsLoading && !predictionsLoading && (
+        <div className="px-4 py-2 bg-blue-50 border-t text-xs text-blue-900 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <span className="flex items-center gap-1">
+              <AlertTriangle className="w-3 h-3" />
+              {alerts.length} alerts
+            </span>
+            <span className="flex items-center gap-1">
+              <TrendingUp className="w-3 h-3" />
+              {predictions.length} predictions
+            </span>
+            <span className="flex items-center gap-1">
+              <MapPin className="w-3 h-3" />
+              10 locations monitored
+            </span>
+          </div>
+          <Badge variant="secondary" className="text-xs">
+            <Zap className="w-3 h-3 mr-1" />
+            Real-time Active
+          </Badge>
+        </div>
+      )}
+
+      {/* Input */}
+      <div className="p-4 border-t bg-gray-50">
+        <div className="flex gap-2">
+          <Button
+            size="icon"
+            variant={isListening ? "destructive" : "outline"}
+            onClick={isListening ? stopListening : startListening}
+          >
+            {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+          </Button>
+          
+          <Input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder={isListening ? "Listening..." : "Ask about disasters, alerts, or safety..."}
+            disabled={loading || isListening}
+            className="flex-1"
+          />
+          
+          <Button
+            onClick={sendMessage}
+            disabled={!input.trim() || loading}
+            size="icon"
+          >
+            {loading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
+          </Button>
+        </div>
+        
+        {isListening && (
+          <div className="mt-2 text-xs text-center text-blue-600 animate-pulse">
+            🎤 Listening... Speak now
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
