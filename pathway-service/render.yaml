@@ -3,6 +3,7 @@ services:
     name: pathway-disaster-service
     runtime: docker
     dockerfilePath: ./Dockerfile
+    dockerContext: ./pathway-service
     envVars:
       - key: OPENWEATHER_API_KEY
         sync: false
