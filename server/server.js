@@ -43,6 +43,9 @@ const allowedOrigins = [
   'http://localhost:8080',
   'http://localhost:8081',
   'https://skynetra.vercel.app',
+  'https://climate-disaster.vercel.app',
+  // Vercel preview deployments
+  /^https:\/\/.*\.vercel\.app$/,
   // ADD YOUR PRODUCTION DOMAINS HERE:
   // 'https://your-app.vercel.app',
   // 'https://your-app.netlify.app',
@@ -54,9 +57,21 @@ app.use(
       // Allow requests with no origin (mobile apps, Postman, etc.)
       if (!origin) return callback(null, true);
       
-      if (allowedOrigins.includes(origin)) {
+      // Check if origin matches allowedOrigins (string or regex)
+      const isAllowed = allowedOrigins.some(allowed => {
+        if (typeof allowed === 'string') {
+          return allowed === origin;
+        }
+        if (allowed instanceof RegExp) {
+          return allowed.test(origin);
+        }
+        return false;
+      });
+      
+      if (isAllowed) {
         callback(null, true);
       } else {
+        console.error('❌ CORS blocked origin:', origin);
         callback(new Error('Not allowed by CORS'));
       }
     },
