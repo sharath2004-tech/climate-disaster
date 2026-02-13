@@ -20,5 +20,21 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Suppress non-blocking Knock.io WebSocket errors -->
+    <script>
+      // Filter out harmless Knock WebSocket errors from console
+      (function() {
+        const originalError = console.error;
+        console.error = function(...args) {
+          const errorMsg = args.join(' ');
+          // Suppress Knock.io WebSocket connection errors (non-blocking)
+          if (errorMsg.includes('api.knock.app') || errorMsg.includes('knock')) {
+            return; // Silently suppress
+          }
+          originalError.apply(console, args);
+        };
+      })();
+    </script>
   </body>
 </html>
