@@ -1,36 +1,43 @@
 """
-HTTP REST API Server for Pathway Service
-Provides RESTful endpoints for the frontend to consume real-time data
+Simplified HTTP REST API Server for Pathway Service (Windows Compatible)
+Provides RESTful endpoints for the frontend without Pathway dependency
 """
 
-from flask import Flask, jsonify, request, Response
+from flask import Flask, jsonify, request
 from flask_cors import CORS
-import json
 import logging
 import os
-import requests as http_requests
-from datetime import datetime
-from advanced_features import (
-    CitizenReportAggregator,
-    EvacuationRouteOptimizer,
-    ResourceAllocator,
-    AlertGenerator
-)
+import requests
+from datetime import datetime, timedelta
+import random
+import json
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Environment variables for LLM
+# Environment variables
+OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY", "")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 COHERE_API_KEY = os.getenv("COHERE_API_KEY", "")
+PORT = int(os.getenv("PORT", 8080))
 
-# In-memory storage (in production, connect to MongoDB/Redis)
+# Sample monitored locations
+monitored_locations = [
+    {"name": "New York", "lat": 40.7128, "lon": -74.0060},
+    {"name": "Los Angeles", "lat": 34.0522, "lon": -118.2437},
+    {"name": "Chicago", "lat": 41.8781, "lon": -87.6298},
+    {"name": "Miami", "lat": 25.7617, "lon": -80.1918},
+]
+
+# In-memory cache
 weather_cache = []
 risk_predictions_cache = []
 citizen_reports = []
-active_disasters = []
+
+# Sample shelters
 shelters = [
     {
         "id": "shelter_001",
@@ -62,18 +69,107 @@ shelters = [
 ]
 
 
-@app.route('/health', methods=['GET'])
-def health_check():
-    """Health check endpoint"""
-    return jsonify({
-        "status": "healthy",
-        "timestamp": int(datetime.now().timestamp()),
-        "service": "pathway-disaster-response"
-    })
+def fetch_weather_data():
+    """Fetch weather data from OpenWeatherMap API"""
+    global weather_cache
+    weather_cache = []
+    
+    if not OPENWEATHER_API_KEY:
+        logger.warning("OPENWEATHER_API_KEY not set, using mock data")
+        # Generate mock weather data
+        for loc in monitored_locations:
+            weather_cache.append({
+                "location": loc["name"],
+                "latitude": loc["lat"],
+                "longitude": loc["lon"],
+                "temperature": random.uniform(15, 35),
+                "humidity": random.uniform(40, 90),
+                "wind_speed": random.uniform(0, 25),
+                "pressure": random.uniform(990, 1020),
+                "weather_condition": random.choice(["Clear", "Cloudy", "Rain", "Storm"]),
+                "timestamp": int(datetime.now().timestamp())
+            })
+        return
+    
+    for loc in monitored_locations:
+        try:
+            url = "https://api.openweathermap.org/data/2.5/weather"
+            params = {
+                "lat": loc["lat"],
+                "lon": loc["lon"],
+                "appid": OPENWEATHER_API_KEY,
+                "units": "metric"
+            }
+            response = requests.get(url, params=params, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            
+            weather_cache.append({
+                "location": loc["name"],
+                "latitude": loc["lat"],
+                "longitude": loc["lon"],
+                "temperature": data["main"]["temp"],
+                "humidity": data["main"]["humidity"],
+                "wind_speed": data["wind"]["speed"],
+                "pressure": data["main"]["pressure"],
+                "weather_condition": data["weather"][0]["main"],
+                "timestamp": int(datetime.now().timestamp())
+            })
+        except Exception as e:
+            logger.error(f"Error fetching weather for {loc['name']}: {e}")
+
+
+def analyze_risks():
+    """Analyze weather data and generate risk predictions"""
+    global risk_predictions_cache
+    risk_predictions_cache = []
+    
+    for weather in weather_cache:
+        risk_score = 0.0
+        predicted_event = "Low Risk"
+        
+        # Simple risk analysis based on weather conditions
+        if weather["weather_condition"] in ["Storm", "Thunderstorm"]:
+            risk_score = random.uniform(0.7, 0.95)
+            predicted_event = "Severe Storm"
+        elif weather["weather_condition"] == "Rain" and weather["wind_speed"] > 20:
+            risk_score = random.uniform(0.5, 0.8)
+            predicted_event = "Heavy Rain & Wind"
+        elif weather["temperature"] > 35:
+            risk_score = random.uniform(0.4, 0.7)
+            predicted_event = "Heat Wave"
+        elif weather["temperature"] < 0:
+            risk_score = random.uniform(0.3, 0.6)
+            predicted_event = "Freezing Conditions"
+        else:
+            risk_score = random.uniform(0.1, 0.3)
+            predicted_event = "Normal Conditions"
+        
+        risk_predictions_cache.append({
+            "location": weather["location"],
+            "latitude": weather["latitude"],
+            "longitude": weather["longitude"],
+            "risk_score": risk_score,
+            "predicted_event_type": predicted_event,
+            "confidence": random.uniform(0.6, 0.95),
+            "time_to_event_hours": random.uniform(1, 24) if risk_score > 0.5 else 999,
+            "recommended_actions": get_recommendations(predicted_event, risk_score),
+            "timestamp": int(datetime.now().timestamp())
+        })
+
+
+def get_recommendations(event_type, risk_score):
+    """Generate recommendations based on event type and risk score"""
+    if risk_score < 0.3:
+        return "No immediate action required. Stay informed."
+    elif risk_score < 0.6:
+        return "Monitor situation closely. Prepare emergency supplies."
+    else:
+        return f"High risk of {event_type}. Consider evacuation. Seek shelter immediately."
 
 
 # ============================================================================
-# AI CHAT ENDPOINT WITH LLM INTEGRATION
+# AI CHAT FUNCTIONS
 # ============================================================================
 
 def build_system_prompt(weather_context=None):
@@ -110,7 +206,7 @@ def call_openrouter(system_prompt, user_message):
     if not OPENROUTER_API_KEY:
         raise Exception("OpenRouter API key not configured")
     
-    response = http_requests.post(
+    response = requests.post(
         'https://openrouter.ai/api/v1/chat/completions',
         headers={
             'Authorization': f'Bearer {OPENROUTER_API_KEY}',
@@ -142,7 +238,7 @@ def call_groq(system_prompt, user_message):
     if not GROQ_API_KEY:
         raise Exception("Groq API key not configured")
     
-    response = http_requests.post(
+    response = requests.post(
         'https://api.groq.com/openai/v1/chat/completions',
         headers={
             'Authorization': f'Bearer {GROQ_API_KEY}',
@@ -165,33 +261,6 @@ def call_groq(system_prompt, user_message):
     
     data = response.json()
     return data.get('choices', [{}])[0].get('message', {}).get('content', '')
-
-
-def call_cohere(system_prompt, user_message):
-    """Call Cohere API"""
-    if not COHERE_API_KEY:
-        raise Exception("Cohere API key not configured")
-    
-    response = http_requests.post(
-        'https://api.cohere.ai/v1/chat',
-        headers={
-            'Authorization': f'Bearer {COHERE_API_KEY}',
-            'Content-Type': 'application/json',
-        },
-        json={
-            'model': 'command',
-            'message': user_message,
-            'preamble': system_prompt,
-            'temperature': 0.7,
-        },
-        timeout=30
-    )
-    
-    if response.status_code != 200:
-        raise Exception(f"Cohere error: {response.status_code}")
-    
-    data = response.json()
-    return data.get('text', '')
 
 
 def generate_fallback_response(query):
@@ -315,15 +384,9 @@ def ai_chat():
                 provider_used = "groq"
             except Exception as e2:
                 logger.warning(f"Groq failed: {e2}")
-                try:
-                    logger.info("Trying Cohere...")
-                    response_text = call_cohere(system_prompt, message)
-                    provider_used = "cohere"
-                except Exception as e3:
-                    logger.warning(f"Cohere failed: {e3}")
-                    logger.info("Using fallback response...")
-                    response_text = generate_fallback_response(message)
-                    provider_used = "fallback"
+                logger.info("Using fallback response...")
+                response_text = generate_fallback_response(message)
+                provider_used = "fallback"
         
         return jsonify({
             "success": True,
@@ -341,9 +404,22 @@ def ai_chat():
         }), 500
 
 
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint"""
+    return jsonify({
+        "status": "healthy",
+        "timestamp": int(datetime.now().timestamp()),
+        "service": "pathway-disaster-response-simplified"
+    })
+
+
 @app.route('/api/v1/weather', methods=['GET'])
 def get_weather():
     """Get current weather data for all monitored locations"""
+    if not weather_cache:
+        fetch_weather_data()
+    
     return jsonify({
         "status": "success",
         "count": len(weather_cache),
@@ -354,8 +430,10 @@ def get_weather():
 @app.route('/api/v1/risk-predictions', methods=['GET'])
 def get_risk_predictions():
     """Get real-time risk predictions"""
+    if not risk_predictions_cache:
+        fetch_weather_data()
+        analyze_risks()
     
-    # Optional filtering by risk level
     min_risk = float(request.args.get('min_risk', 0.0))
     
     filtered_predictions = [
@@ -374,12 +452,24 @@ def get_risk_predictions():
 @app.route('/api/v1/alerts', methods=['GET'])
 def get_alerts():
     """Get active alerts based on risk predictions"""
+    if not risk_predictions_cache:
+        fetch_weather_data()
+        analyze_risks()
     
     alerts = []
-    for prediction in risk_predictions_cache:
-        if prediction.get('risk_score', 0) > 0.5:
-            alert = AlertGenerator.generate_alert(prediction, 50000)
-            alerts.append(alert)
+    for pred in risk_predictions_cache:
+        if pred['risk_score'] >= 0.6:
+            alerts.append({
+                "alert_id": f"alert_{int(datetime.now().timestamp())}_{pred['location'].replace(' ', '_')}",
+                "location": pred['location'],
+                "latitude": pred['latitude'],
+                "longitude": pred['longitude'],
+                "severity": "high" if pred['risk_score'] >= 0.8 else "medium",
+                "event_type": pred['predicted_event_type'],
+                "message": f"{pred['predicted_event_type']} warning for {pred['location']}",
+                "recommended_actions": pred['recommended_actions'],
+                "timestamp": pred['timestamp']
+            })
     
     return jsonify({
         "status": "success",
@@ -388,227 +478,111 @@ def get_alerts():
     })
 
 
-@app.route('/api/v1/reports', methods=['GET', 'POST'])
-def handle_citizen_reports():
-    """Handle citizen reports submission and retrieval"""
+@app.route('/api/v1/shelters', methods=['GET'])
+def get_shelters():
+    """Get available emergency shelters"""
+    lat = request.args.get('lat', type=float)
+    lon = request.args.get('lon', type=float)
     
+    # If coordinates provided, sort by distance (simplified)
+    sorted_shelters = shelters
+    if lat and lon:
+        # Simple distance calculation (for demo purposes)
+        for shelter in sorted_shelters:
+            dist = ((shelter['latitude'] - lat)**2 + (shelter['longitude'] - lon)**2)**0.5
+            shelter['distance_km'] = round(dist * 111, 2)  # Rough km conversion
+        sorted_shelters = sorted(sorted_shelters, key=lambda x: x.get('distance_km', 999))
+    
+    return jsonify({
+        "status": "success",
+        "count": len(sorted_shelters),
+        "data": sorted_shelters
+    })
+
+
+@app.route('/api/v1/evacuation-route', methods=['POST'])
+def get_evacuation_route():
+    """Calculate optimal evacuation route"""
+    data = request.get_json()
+    start_lat = data.get('start_lat')
+    start_lon = data.get('start_lon')
+    
+    # Find nearest shelter
+    nearest_shelter = min(shelters, 
+                         key=lambda s: ((s['latitude'] - start_lat)**2 + 
+                                       (s['longitude'] - start_lon)**2)**0.5)
+    
+    return jsonify({
+        "status": "success",
+        "route": {
+            "start": {"latitude": start_lat, "longitude": start_lon},
+            "end": {
+                "latitude": nearest_shelter['latitude'], 
+                "longitude": nearest_shelter['longitude']
+            },
+            "shelter": nearest_shelter,
+            "estimated_time_minutes": random.randint(10, 45),
+            "distance_km": round(random.uniform(2, 15), 2),
+            "route_status": "clear",
+            "waypoints": [
+                {"latitude": start_lat, "longitude": start_lon},
+                {"latitude": nearest_shelter['latitude'], "longitude": nearest_shelter['longitude']}
+            ]
+        }
+    })
+
+
+@app.route('/api/v1/citizen-reports', methods=['GET', 'POST'])
+def handle_citizen_reports():
+    """Handle citizen disaster reports"""
     if request.method == 'POST':
-        # Submit new citizen report
-        data = request.json
-        
+        data = request.get_json()
         report = {
-            "report_id": f"REP-{int(datetime.now().timestamp())}",
+            "report_id": f"report_{int(datetime.now().timestamp())}",
             "timestamp": int(datetime.now().timestamp()),
             "latitude": data.get('latitude'),
             "longitude": data.get('longitude'),
             "report_type": data.get('report_type'),
             "severity": data.get('severity', 5),
-            "description": data.get('description', ''),
-            "image_url": data.get('image_url', ''),
-            "user_id": data.get('user_id', 'anonymous')
+            "description": data.get('description'),
+            "verified": False,
+            "verification_count": 1
         }
-        
         citizen_reports.append(report)
-        
-        return jsonify({
-            "status": "success",
-            "message": "Report submitted successfully",
-            "report_id": report['report_id']
-        }), 201
-    
-    else:
-        # Get all reports
-        return jsonify({
-            "status": "success",
-            "count": len(citizen_reports),
-            "data": citizen_reports
-        })
-
-
-@app.route('/api/v1/reports/verified', methods=['GET'])
-def get_verified_reports():
-    """Get verified citizen reports (clustered and cross-verified)"""
-    
-    # Group reports by location grid
-    grid_groups = {}
-    for report in citizen_reports:
-        grid_cell = CitizenReportAggregator.grid_cell(
-            report['latitude'],
-            report['longitude']
-        )
-        if grid_cell not in grid_groups:
-            grid_groups[grid_cell] = []
-        grid_groups[grid_cell].append(report)
-    
-    # Verify each group
-    verified_incidents = []
-    for grid_cell, reports in grid_groups.items():
-        if len(reports) >= 2:  # At least 2 reports to verify
-            verification = CitizenReportAggregator.verify_reports(reports)
-            
-            if verification['verified'] or verification['report_count'] >= 3:
-                # Calculate center point
-                avg_lat = sum(r['latitude'] for r in reports) / len(reports)
-                avg_lon = sum(r['longitude'] for r in reports) / len(reports)
-                
-                verified_incidents.append({
-                    "incident_id": f"INC-{grid_cell}",
-                    "grid_cell": grid_cell,
-                    "latitude": avg_lat,
-                    "longitude": avg_lon,
-                    "report_count": len(reports),
-                    "verified": verification['verified'],
-                    "confidence": verification['confidence'],
-                    "severity": verification['consensus_severity'],
-                    "reports": reports
-                })
+        return jsonify({"status": "success", "report": report})
     
     return jsonify({
         "status": "success",
-        "count": len(verified_incidents),
-        "data": verified_incidents
+        "count": len(citizen_reports),
+        "data": citizen_reports
     })
 
 
-@app.route('/api/v1/evacuation/shelters', methods=['GET'])
-def get_shelters():
-    """Get available evacuation shelters"""
+@app.route('/api/v1/refresh', methods=['POST'])
+def refresh_data():
+    """Manually refresh weather data and risk analysis"""
+    fetch_weather_data()
+    analyze_risks()
     return jsonify({
         "status": "success",
-        "count": len(shelters),
-        "data": shelters
-    })
-
-
-@app.route('/api/v1/evacuation/route', methods=['POST'])
-def get_evacuation_route():
-    """Get optimal evacuation route for a user"""
-    
-    data = request.json
-    user_lat = data.get('latitude')
-    user_lon = data.get('longitude')
-    
-    if not user_lat or not user_lon:
-        return jsonify({
-            "status": "error",
-            "message": "Latitude and longitude required"
-        }), 400
-    
-    # Find best shelters
-    disaster_zones = [
-        {
-            "latitude": pred['latitude'],
-            "longitude": pred['longitude'],
-            "severity": pred['risk_score'] * 10
-        }
-        for pred in risk_predictions_cache
-        if pred.get('risk_score', 0) > 0.5
-    ]
-    
-    best_shelters = EvacuationRouteOptimizer.find_best_shelter(
-        user_lat,
-        user_lon,
-        shelters,
-        disaster_zones,
-        max_shelters=3
-    )
-    
-    return jsonify({
-        "status": "success",
-        "user_location": {
-            "latitude": user_lat,
-            "longitude": user_lon
-        },
-        "recommended_shelters": best_shelters,
-        "disaster_zones_nearby": len(disaster_zones)
-    })
-
-
-@app.route('/api/v1/resources/allocation', methods=['GET'])
-def get_resource_allocation():
-    """Get resource allocation recommendations"""
-    
-    # Use high-risk predictions as disasters
-    disasters = [
-        {
-            "event_id": f"DIS-{i}",
-            "latitude": pred['latitude'],
-            "longitude": pred['longitude'],
-            "severity": int(pred['risk_score'] * 10),
-            "affected_radius_km": 5 + (pred['risk_score'] * 10),
-            "population": 50000
-        }
-        for i, pred in enumerate(risk_predictions_cache)
-        if pred.get('risk_score', 0) > 0.5
-    ]
-    
-    allocations = ResourceAllocator.allocate_resources(disasters, [])
-    
-    return jsonify({
-        "status": "success",
-        "count": len(allocations),
-        "data": allocations
-    })
-
-
-@app.route('/api/v1/stream/events', methods=['GET'])
-def stream_events():
-    """Server-Sent Events stream for real-time updates"""
-    
-    def generate():
-        while True:
-            # Send latest data every 5 seconds
-            import time
-            time.sleep(5)
-            
-            data = {
-                "timestamp": int(datetime.now().timestamp()),
-                "weather_updates": len(weather_cache),
-                "risk_predictions": len(risk_predictions_cache),
-                "active_alerts": len([p for p in risk_predictions_cache if p.get('risk_score', 0) > 0.5]),
-                "citizen_reports": len(citizen_reports)
-            }
-            
-            yield f"data: {json.dumps(data)}\n\n"
-    
-    return Response(generate(), mimetype='text/event-stream')
-
-
-@app.route('/api/v1/stats', methods=['GET'])
-def get_stats():
-    """Get overall system statistics"""
-    
-    high_risk_count = len([p for p in risk_predictions_cache if p.get('risk_score', 0) > 0.7])
-    moderate_risk_count = len([p for p in risk_predictions_cache if 0.4 <= p.get('risk_score', 0) < 0.7])
-    
-    verified_reports = len([r for r in citizen_reports if True])  # Simplified
-    
-    total_shelter_capacity = sum(s['capacity'] for s in shelters)
-    total_shelter_occupancy = sum(s['current_occupancy'] for s in shelters)
-    
-    return jsonify({
-        "status": "success",
-        "stats": {
-            "monitored_locations": len(weather_cache),
-            "high_risk_zones": high_risk_count,
-            "moderate_risk_zones": moderate_risk_count,
-            "total_citizen_reports": len(citizen_reports),
-            "verified_incidents": verified_reports,
-            "available_shelters": len(shelters),
-            "total_shelter_capacity": total_shelter_capacity,
-            "current_shelter_occupancy": total_shelter_occupancy,
-            "shelter_availability_percent": int(((total_shelter_capacity - total_shelter_occupancy) / total_shelter_capacity) * 100) if total_shelter_capacity > 0 else 0
-        },
+        "message": "Data refreshed successfully",
         "timestamp": int(datetime.now().timestamp())
     })
 
 
-def update_cache(weather_data, risk_data):
-    """Update in-memory cache with latest data"""
-    global weather_cache, risk_predictions_cache
-    weather_cache = weather_data
-    risk_predictions_cache = risk_data
-
-
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080, debug=True)
+    logger.info("=" * 60)
+    logger.info("Starting Simplified Pathway Service (Windows Compatible)")
+    logger.info("=" * 60)
+    logger.info(f"Port: {PORT}")
+    logger.info(f"OpenWeather API Key: {'Configured' if OPENWEATHER_API_KEY else 'Not configured (using mock data)'}")
+    logger.info("=" * 60)
+    
+    # Initial data fetch
+    fetch_weather_data()
+    analyze_risks()
+    
+    # Run Flask app
+    from waitress import serve
+    logger.info(f"Server running on http://localhost:{PORT}")
+    serve(app, host='0.0.0.0', port=PORT)

@@ -39,5 +39,13 @@ pathway-service/.env.example
 build/
 *.tsbuildinfo
 
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.so
+
 # OS files
 Thumbs.db

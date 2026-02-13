@@ -9,32 +9,33 @@
  * - Voice input/output support
  */
 
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
 import { useAlerts, useRiskPredictions } from '@/hooks/usePathway';
 import PathwayService from '@/services/pathwayService';
 import {
-  AlertTriangle,
-  Bell,
-  Bot,
-  Loader2,
-  MapPin,
-  Mic,
-  MicOff,
-  Send,
-  TrendingUp,
-  User,
-  Volume2,
-  VolumeX,
-  Zap
+    AlertTriangle,
+    Bell,
+    Bot,
+    Loader2,
+    MapPin,
+    Mic,
+    MicOff,
+    Send,
+    TrendingUp,
+    User,
+    Volume2,
+    VolumeX,
+    Zap
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const PATHWAY_API = import.meta.env.VITE_PATHWAY_API_URL || 'http://localhost:8080';
 
 interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -395,22 +396,45 @@ export default function PathwayAIChat() {
         context = `\n\nCurrent Pathway Real-time Data:\n${alertsContext}\n${predictionsContext}`;
       }
 
-      // Call AI API
-      const response = await fetch(`${API_BASE}/ai/chat`, {
+      // Call Pathway AI Chat API (with LLM support)
+      const response = await fetch(`${PATHWAY_API}/api/v1/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: input + context,
-          conversationHistory: messages.slice(-5).map(m => ({
-            role: m.role === 'system' ? 'assistant' : m.role,
-            content: m.content
-          }))
+          message: input + context
         })
       });
 
       if (!response.ok) {
-        // If backend fails, provide a helpful response
-        throw new Error('Backend AI unavailable');
+        // If Pathway service fails, try backend as fallback
+        const backendResponse = await fetch(`${API_BASE}/ai/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: input + context,
+            conversationHistory: messages.slice(-5).map(m => ({
+              role: m.role === 'system' ? 'assistant' : m.role,
+              content: m.content
+            }))
+          })
+        });
+        
+        if (!backendResponse.ok) {
+          throw new Error('AI services unavailable');
+        }
+        
+        const backendData = await backendResponse.json();
+        const assistantMessage: Message = {
+          role: 'assistant',
+          content: backendData.response || backendData.message || 'I apologize, but I could not generate a response.',
+          timestamp: new Date(),
+          type: 'normal'
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+        if (isSpeaking) {
+          speak(assistantMessage.content.replace(/[*#]/g, ''));
+        }
+        return;
       }
 
       const data = await response.json();
