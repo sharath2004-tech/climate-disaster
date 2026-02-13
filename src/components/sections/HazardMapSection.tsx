@@ -98,13 +98,19 @@ export function HazardMapSection() {
             : alert.location.coordinates?.coordinates;
           
           if (coords && coords.length === 2) {
+            // Ensure coordinates are in [lon, lat] format for Mapbox
+            // If first value is < 50, assume it's [lat, lon] and swap
+            const [first, second] = coords;
+            const isLatLonFormat = first < 50; // Latitude will be < 50 for India
+            const mapboxCoords: [number, number] = isLatLonFormat ? [second, first] : [first, second];
+            
             newMarkers.push({
               id: alert._id,
               type: 'alert',
               title: alert.title || 'Alert',
               description: alert.description,
               severity: alert.severity,
-              coordinates: coords as [number, number],
+              coordinates: mapboxCoords,
             });
           }
         }
@@ -114,13 +120,21 @@ export function HazardMapSection() {
       const resources = Array.isArray(resourcesRes) ? resourcesRes : (resourcesRes?.resources || []);
       resources.forEach((resource: any) => {
         if (resource.location?.coordinates) {
-          newMarkers.push({
-            id: resource._id,
-            type: resource.type === 'shelter' ? 'shelter' : 'resource',
-            title: resource.name || 'Resource',
-            description: resource.description,
-            coordinates: resource.location.coordinates as [number, number],
-          });
+          const coords = resource.location.coordinates;
+          if (coords && coords.length === 2) {
+            // Ensure coordinates are in [lon, lat] format for Mapbox
+            const [first, second] = coords;
+            const isLatLonFormat = first < 50;
+            const mapboxCoords: [number, number] = isLatLonFormat ? [second, first] : [first, second];
+            
+            newMarkers.push({
+              id: resource._id,
+              type: resource.type === 'shelter' ? 'shelter' : 'resource',
+              title: resource.name || 'Resource',
+              description: resource.description,
+              coordinates: mapboxCoords,
+            });
+          }
         }
       });
 
@@ -133,13 +147,18 @@ export function HazardMapSection() {
             : report.location.coordinates?.coordinates;
           
           if (coords && coords.length === 2) {
+            // Ensure coordinates are in [lon, lat] format for Mapbox
+            const [first, second] = coords;
+            const isLatLonFormat = first < 50;
+            const mapboxCoords: [number, number] = isLatLonFormat ? [second, first] : [first, second];
+            
             newMarkers.push({
               id: report._id,
               type: 'report',
               title: report.title || 'Report',
               description: report.description,
               severity: report.severity,
-              coordinates: coords as [number, number],
+              coordinates: mapboxCoords,
             });
           }
         }
@@ -189,21 +208,18 @@ export function HazardMapSection() {
         border-radius: 50%;
         cursor: pointer;
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        transition: transform 0.2s ease, z-index 0s;
-        transform-origin: center center;
-        position: relative;
-        z-index: 1;
+        transition: transform 0.2s ease;
+        position: absolute;
+        pointer-events: auto;
       `;
       el.onmouseenter = () => {
         el.style.transform = 'scale(1.3)';
-        el.style.zIndex = '10';
       };
       el.onmouseleave = () => {
         el.style.transform = 'scale(1)';
-        el.style.zIndex = '1';
       };
 
-      const marker = new mapboxgl.Marker(el)
+      const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
         .setLngLat(markerData.coordinates)
         .setPopup(
           new mapboxgl.Popup({ offset: 25 })
@@ -271,9 +287,10 @@ export function HazardMapSection() {
               border: 4px solid white;
               border-radius: 50%;
               box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.3), 0 2px 8px rgba(0,0,0,0.3);
+              position: absolute;
             `;
 
-            userMarkerRef.current = new mapboxgl.Marker(el)
+            userMarkerRef.current = new mapboxgl.Marker({ element: el, anchor: 'center' })
               .setLngLat([longitude, latitude])
               .setPopup(new mapboxgl.Popup().setHTML('<strong>Your Location</strong>'))
               .addTo(map.current);
