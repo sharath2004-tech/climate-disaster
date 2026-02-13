@@ -1,7 +1,7 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
-// Helper function for API calls
-async function apiCall(endpoint: string, options: RequestInit = {}) {
+// Helper function for API calls with timeout and retry support
+async function apiCall(endpoint: string, options: RequestInit = {}, timeout = 60000) {
   const token = localStorage.getItem('token');
   
   const headers: HeadersInit = {
@@ -13,17 +13,34 @@ async function apiCall(endpoint: string, options: RequestInit = {}) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  // Create abort controller for timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'An error occurred' }));
-    throw new Error(error.error || 'Request failed');
+  try {
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'An error occurred' }));
+      throw new Error(error.error || 'Request failed');
+    }
+
+    return response.json();
+  } catch (error) {
+    clearTimeout(timeoutId);
+    
+    // Better error messages for common issues
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Request timeout - backend may be waking up, please retry in a moment');
+    }
+    throw error;
   }
-
-  return response.json();
 }
 
 // Auth API

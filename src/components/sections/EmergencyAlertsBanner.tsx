@@ -31,24 +31,56 @@ export function EmergencyAlertsBanner() {
   const [alerts, setAlerts] = useState<EmergencyAlert[]>([]);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
+    let retryTimeout: NodeJS.Timeout;
+    
     const fetchAlerts = async () => {
       try {
         const data = await emergencyAlertsAPI.getActive();
         setAlerts(data || []);
+        setRetryCount(0); // Reset retry count on success
+        setIsLoading(false);
       } catch (error) {
         console.error('Failed to fetch emergency alerts:', error);
-      } finally {
-        setIsLoading(false);
+        
+        // Retry logic for cold starts (Render free tier)
+        if (retryCount < 3) {
+          const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 10000); // Exponential backoff: 1s, 2s, 4s
+          console.log(`Retrying emergency alerts fetch in ${retryDelay}ms... (attempt ${retryCount + 1}/3)`);
+          
+          retryTimeout = setTimeout(() => {
+            setRetryCount(prev => prev + 1);
+          }, retryDelay);
+        } else {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchAlerts();
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchAlerts, 30000);
+    
+    return () => {
+      if (retryTimeout) clearTimeout(retryTimeout);
+    };
+  }, [retryCount]);
+
+  // Periodic refresh after initial load
+  useEffect(() => {
+    if (isLoading || retryCount > 0) return;
+    
+    const interval = setInterval(async () => {
+      try {
+        const data = await emergencyAlertsAPI.getActive();
+        setAlerts(data || []);
+      } catch (error) {
+        console.error('Failed to refresh emergency alerts:', error);
+      }
+    }, 30000);
+    
     return () => clearInterval(interval);
-  }, []);
+  }, [isLoading, retryCount]);
 
   const dismissAlert = (id: string) => {
     setDismissedIds(prev => new Set([...prev, id]));
