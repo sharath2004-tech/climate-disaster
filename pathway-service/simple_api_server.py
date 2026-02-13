@@ -386,19 +386,19 @@ def ai_chat():
         response_text = None
         provider_used = None
         
-        # Try LLM providers with fallback chain
+        # Try LLM providers with fallback chain (Groq first - most reliable)
         try:
-            logger.info("Trying OpenRouter...")
-            response_text = call_openrouter(system_prompt, message)
-            provider_used = "openrouter"
+            logger.info("Trying Groq...")
+            response_text = call_groq(system_prompt, message)
+            provider_used = "groq"
         except Exception as e:
-            logger.warning(f"OpenRouter failed: {e}")
+            logger.warning(f"Groq failed: {e}")
             try:
-                logger.info("Trying Groq...")
-                response_text = call_groq(system_prompt, message)
-                provider_used = "groq"
+                logger.info("Trying OpenRouter...")
+                response_text = call_openrouter(system_prompt, message)
+                provider_used = "openrouter"
             except Exception as e2:
-                logger.warning(f"Groq failed: {e2}")
+                logger.warning(f"OpenRouter failed: {e2}")
                 logger.info("Using fallback response...")
                 response_text = generate_fallback_response(message)
                 provider_used = "fallback"
