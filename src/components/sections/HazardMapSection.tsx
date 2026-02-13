@@ -1,7 +1,7 @@
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
 import { alertsAPI, reportsAPI, resourcesAPI } from "@/lib/api";
-import { AlertTriangle, Building, Filter, Layers, Loader2, Locate, MapPin, Navigation, RefreshCw, Users, ZoomIn, ZoomOut } from "lucide-react";
+import { AlertTriangle, Building, Filter, Layers, Loader2, Locate, MapPin, Mouse, Navigation, RefreshCw, Users, ZoomIn, ZoomOut } from "lucide-react";
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -34,6 +34,7 @@ export function HazardMapSection() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [selectedMarker, setSelectedMarker] = useState<MapMarker | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [mapInteractive, setMapInteractive] = useState(false);
   const userMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
 
@@ -47,6 +48,7 @@ export function HazardMapSection() {
       center: [78.9629, 20.5937], // India center
       zoom: 4.5,
       pitch: 0,
+      scrollZoom: false, // Disabled by default to prevent page scroll conflicts
     });
 
     map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
@@ -62,6 +64,17 @@ export function HazardMapSection() {
       }
     };
   }, []);
+
+  // Toggle map scroll zoom interaction
+  useEffect(() => {
+    if (map.current && mapReady) {
+      if (mapInteractive) {
+        map.current.scrollZoom.enable();
+      } else {
+        map.current.scrollZoom.disable();
+      }
+    }
+  }, [mapInteractive, mapReady]);
 
   // Fetch data
   const fetchMapData = useCallback(async () => {
@@ -176,10 +189,19 @@ export function HazardMapSection() {
         border-radius: 50%;
         cursor: pointer;
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        transition: transform 0.2s;
+        transition: transform 0.2s ease, z-index 0s;
+        transform-origin: center center;
+        position: relative;
+        z-index: 1;
       `;
-      el.onmouseenter = () => el.style.transform = 'scale(1.3)';
-      el.onmouseleave = () => el.style.transform = 'scale(1)';
+      el.onmouseenter = () => {
+        el.style.transform = 'scale(1.3)';
+        el.style.zIndex = '10';
+      };
+      el.onmouseleave = () => {
+        el.style.transform = 'scale(1)';
+        el.style.zIndex = '1';
+      };
 
       const marker = new mapboxgl.Marker(el)
         .setLngLat(markerData.coordinates)
@@ -312,6 +334,15 @@ export function HazardMapSection() {
 
               {/* Custom Map Controls */}
               <div className="absolute right-4 top-20 flex flex-col gap-2 z-10">
+                <Button 
+                  size="icon" 
+                  variant={mapInteractive ? "default" : "secondary"} 
+                  className={`glass w-10 h-10 ${mapInteractive ? 'bg-primary text-primary-foreground' : ''}`}
+                  onClick={() => setMapInteractive(!mapInteractive)}
+                  title={mapInteractive ? "Disable scroll zoom" : "Enable scroll zoom"}
+                >
+                  <Mouse className="w-4 h-4" />
+                </Button>
                 <Button size="icon" variant="secondary" className="glass w-10 h-10" onClick={() => handleZoom('in')}>
                   <ZoomIn className="w-4 h-4" />
                 </Button>
@@ -325,6 +356,20 @@ export function HazardMapSection() {
                   <RefreshCw className="w-4 h-4" />
                 </Button>
               </div>
+
+              {/* Map interaction hint overlay */}
+              {!mapInteractive && (
+                <div 
+                  className="absolute inset-0 flex items-center justify-center pointer-events-none z-5"
+                  style={{ background: 'rgba(0,0,0,0.1)' }}
+                >
+                  <div className="glass-card p-4 text-center pointer-events-auto cursor-pointer" onClick={() => setMapInteractive(true)}>
+                    <Mouse className="w-6 h-6 mx-auto mb-2 text-primary" />
+                    <p className="text-sm font-medium text-foreground">Click to enable map interaction</p>
+                    <p className="text-xs text-muted-foreground">or use the mouse button on the right</p>
+                  </div>
+                </div>
+              )}
 
               {/* Stats overlay */}
               <div className="absolute left-4 top-4 glass-card p-4 z-10">

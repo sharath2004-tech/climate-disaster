@@ -147,6 +147,7 @@ export default function PathwayAIChat() {
   const [loading, setLoading] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const lastAlertIdRef = useRef<string | null>(null);
   const lastPredictionRef = useRef<string | null>(null);
 
@@ -158,10 +159,15 @@ export default function PathwayAIChat() {
   const { isListening, transcript, startListening, stopListening, setTranscript } = useVoiceRecognition();
   const { isSpeaking, speak, stopSpeaking } = useTextToSpeech();
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom within chat container only (not the page)
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (scrollContainerRef.current) {
+      const container = scrollContainerRef.current;
+      // Scroll to bottom smoothly within the container
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: 'smooth'
+      });
     }
   }, [messages]);
 
@@ -548,7 +554,7 @@ export default function PathwayAIChat() {
       </div>
 
       {/* Messages */}
-      <ScrollArea className="flex-1 p-4">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4">
         <div className="space-y-4">
           {messages.map((message, idx) => (
             <div
@@ -609,7 +615,7 @@ export default function PathwayAIChat() {
           
           <div ref={scrollRef} />
         </div>
-      </ScrollArea>
+      </div>
 
       {/* Pathway Status Bar */}
       {!alertsLoading && !predictionsLoading && (
