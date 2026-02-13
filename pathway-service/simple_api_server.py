@@ -13,7 +13,22 @@ import random
 import json
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for frontend
+# Enable CORS for frontend with explicit configuration
+CORS(app, resources={
+    r"/*": {
+        "origins": [
+            "https://skynetra.vercel.app",
+            "https://*.vercel.app",
+            "http://localhost:*",
+            "https://climate-disaster.vercel.app"
+        ],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"],
+        "expose_headers": ["Content-Type"],
+        "supports_credentials": False,
+        "max_age": 3600
+    }
+})
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 

@@ -18,7 +18,22 @@ from advanced_features import (
 )
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for frontend
+# Enable CORS for frontend with explicit configuration
+CORS(app, resources={
+    r"/*": {
+        "origins": [
+            "https://skynetra.vercel.app",
+            "https://*.vercel.app",
+            "http://localhost:*",
+            "https://climate-disaster.vercel.app"
+        ],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"],
+        "expose_headers": ["Content-Type"],
+        "supports_credentials": False,
+        "max_age": 3600
+    }
+})
 logger = logging.getLogger(__name__)
 
 # Environment variables for LLM
