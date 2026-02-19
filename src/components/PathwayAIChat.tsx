@@ -152,7 +152,7 @@ export default function PathwayAIChat() {
 
   // Pathway hooks
   const { alerts, loading: alertsLoading } = useAlerts();
-  const { predictions, loading: predictionsLoading } = useRiskPredictions(0.6);
+  const { predictions, loading: predictionsLoading } = useRiskPredictions(0.3);
 
   // Voice features
   const { isListening, transcript, startListening, stopListening, setTranscript } = useVoiceRecognition();
