@@ -380,8 +380,8 @@ class EntityRecognizer {
   private static instance: EntityRecognizer;
 
   private disasterTypes = [
-    'flood', 'flooding', 'cyclone', 'hurricane', 'earthquake', 'quake',
-    'heatwave', 'heat wave', 'fire', 'wildfire', 'landslide', 'tsunami',
+    'flooding', 'floods', 'flood', 'cyclone', 'hurricane', 'earthquake', 'quake',
+    'heatwave', 'heat wave', 'wildfire', 'fires', 'fire', 'landslide', 'tsunami',
     'storm', 'tornado', 'drought', 'avalanche'
   ];
 
