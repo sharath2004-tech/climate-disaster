@@ -213,7 +213,7 @@ describe('Example Test Suite', () => {
   });
 
   describe('Utility Functions', () => {
-    it('should validate email correctly', () => {
+    it('should validate email correctly', async () => {
       const { validateEmail } = await import('@/lib/security');
       
       expect(validateEmail('test@example.com')).toBe(true);
@@ -221,7 +221,7 @@ describe('Example Test Suite', () => {
       expect(validateEmail('test@')).toBe(false);
     });
 
-    it('should validate coordinates correctly', () => {
+    it('should validate coordinates correctly', async () => {
       const { validateCoordinates } = await import('@/lib/security');
       
       expect(validateCoordinates(40.7128, -74.006)).toBe(true);
@@ -229,7 +229,7 @@ describe('Example Test Suite', () => {
       expect(validateCoordinates(0, 181)).toBe(false);
     });
 
-    it('should sanitize input to prevent XSS', () => {
+    it('should sanitize input to prevent XSS', async () => {
       const { sanitizeInput } = await import('@/lib/security');
       
       const maliciousInput = '<script>alert("XSS")</script>';

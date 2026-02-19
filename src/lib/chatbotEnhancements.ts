@@ -413,47 +413,53 @@ class EntityRecognizer {
   extract(text: string): ExtractedEntity[] {
     const entities: ExtractedEntity[] = [];
     const textLower = text.toLowerCase();
-    const matched = new Set<string>(); // Track matched terms to avoid duplicates
+    const matchedDisasters = new Set<string>(); // Track matched disaster values
 
     // Sort disaster types by length (descending) to match longer phrases first
     const sortedDisasters = [...this.disasterTypes].sort((a, b) => b.length - a.length);
 
     // Extract disasters using word boundaries
     sortedDisasters.forEach(disaster => {
-      const regex = new RegExp(`\\b${disaster}\\b`, 'i');
-      if (regex.test(text) && !matched.has('disaster')) {
+      const escapedDisaster = disaster.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`\\b${escapedDisaster}\\b`, 'i');
+      if (regex.test(text) && !matchedDisasters.has(disaster)) {
         entities.push({
           type: 'disaster',
           value: disaster,
           confidence: 0.9,
         });
-        matched.add('disaster'); // Only match first disaster to avoid duplicates
+        matchedDisasters.add(disaster); // Track this specific disaster
       }
     });
 
     // Extract severity using word boundaries
+    const matchedSeverity = new Set<string>();
     for (const severity of this.severityTerms) {
-      const regex = new RegExp(`\\b${severity}\\b`, 'i');
-      if (regex.test(text) && !matched.has('severity')) {
+      const escapedSeverity = severity.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`\\b${escapedSeverity}\\b`, 'i');
+      if (regex.test(text) && !matchedSeverity.has(severity)) {
         entities.push({
           type: 'severity',
           value: severity,
           confidence: 0.8,
         });
-        matched.add('severity');
+        matchedSeverity.add(severity);
         break; // Only match first severity
       }
     }
 
     // Extract actions using word boundaries
+    const matchedActions = new Set<string>();
     for (const action of this.actionVerbs) {
-      const regex = new RegExp(`\\b${action}\\b`, 'i');
-      if (regex.test(text)) {
+      const escapedAction = action.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`\\b${escapedAction}\\b`, 'i');
+      if (regex.test(text) && !matchedActions.has(action)) {
         entities.push({
           type: 'action',
           value: action,
           confidence: 0.7,
         });
+        matchedActions.add(action);
       }
     }
 
@@ -462,16 +468,17 @@ class EntityRecognizer {
     const hasDisasterContext = entities.some(e => e.type === 'disaster' || e.type === 'severity' || e.type === 'action');
     
     if (hasDisasterContext) {
+      const matchedTimes = new Set<string>();
       for (const time of this.timeIndicators) {
-        const regex = new RegExp(`\\b${time}\\b`, 'i');
-        if (regex.test(text) && !matched.has('time')) {
+        const escapedTime = time.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`\\b${escapedTime}\\b`, 'i');
+        if (regex.test(text) && !matchedTimes.has(time)) {
           entities.push({
             type: 'time',
             value: time,
             confidence: 0.8,
           });
-          matched.add('time');
-          break; // Only match first time indicator
+          matchedTimes.add(time);
         }
       }
     }
