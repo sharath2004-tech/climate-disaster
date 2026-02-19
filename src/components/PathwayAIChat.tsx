@@ -13,7 +13,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAlerts, useRiskPredictions } from '@/hooks/usePathway';
 import PathwayService from '@/services/pathwayService';
 import {
@@ -261,10 +260,38 @@ export default function PathwayAIChat() {
       // Check if user is asking about Pathway data specifically
       const query = input.toLowerCase();
       const isPathwayStatusQuery = /pathway.*work|pathway.*status|latest.*data|real.*time.*data|show.*me.*data/i.test(input);
-      const isWeatherQuery = /weather|temperature|temp|forecast/i.test(query);
+      const isWeatherQuery = /weather|temperature|temp|forecast|climate|condition/i.test(query);
       const isAlertQuery = /alert|warn|danger|emergency/i.test(query);
       const isRiskQuery = /risk|prediction|hazard|threat/i.test(query);
       const isSafetyQuery = /safe|shelter|evacuat|location/i.test(query);
+      
+      // Extract specific location mentions
+      const locationMatch = query.match(/(?:in|at|near|for)\s+([a-z\s]+?)(?:\s|$|,|\.|\?)/i);
+      const isMyLocationQuery = /my city|my location|my area|here|where i am/i.test(query);
+      const isSpecificCity = locationMatch || isMyLocationQuery;
+      
+      // Extract city name if mentioned
+      let requestedCity = locationMatch ? locationMatch[1].trim() : null;
+      
+      // Normalize common city names
+      const cityAliases: Record<string, string> = {
+        'delhi': 'Delhi',
+        'mumbai': 'Mumbai',
+        'bengaluru': 'Bengaluru',
+        'bangalore': 'Bengaluru',
+        'chennai': 'Chennai',
+        'kolkata': 'Kolkata',
+        'calcutta': 'Kolkata',
+        'hyderabad': 'Hyderabad',
+        'ahmedabad': 'Ahmedabad',
+        'chandigarh': 'Chandigarh',
+        'guwahati': 'Guwahati',
+        'bhopal': 'Bhopal'
+      };
+      
+      if (requestedCity) {
+        requestedCity = cityAliases[requestedCity.toLowerCase()] || requestedCity;
+      }
 
       // Handle Pathway-specific queries directly
       if (isPathwayStatusQuery || isWeatherQuery || isAlertQuery || isRiskQuery) {
@@ -325,25 +352,112 @@ export default function PathwayAIChat() {
         } else if (isWeatherQuery) {
           try {
             const weatherData = await PathwayService.getWeather();
-            responseContent = `🌤️ **Real-time Weather Data from Pathway:**\n\n`;
             
             if (weatherData.data && weatherData.data.length > 0) {
-              weatherData.data.forEach((w: WeatherData) => {
-                const cityName = w.city_name || w.location;
-                responseContent += `📍 **${cityName}**\n`;
-                responseContent += `   🌡️ ${w.temperature.toFixed(1)}°C | 💧 ${w.humidity}% | ${w.weather_condition}\n`;
-                responseContent += `   🌬️ Wind: ${w.wind_speed} m/s | 🔽 Pressure: ${w.pressure} hPa\n\n`;
-              });
+              // If user asks about specific city or their location
+              if (isSpecificCity) {
+                const targetCity = requestedCity;
+                
+                // For "my city/location", try to get user's location from browser
+                if (isMyLocationQuery && !targetCity) {
+                  responseContent = `📍 **Weather at Your Location:**\n\n`;
+                  responseContent += `To show weather for your specific location, I need access to your location. `;
+                  responseContent += `However, here are the major cities I'm currently monitoring:\n\n`;
+                  
+                  // Show list of available cities
+                  const cities = weatherData.data.map((w: WeatherData) => w.city_name || w.location).filter(Boolean);
+                  responseContent += cities.join(', ');
+                  responseContent += `\n\nYou can ask "How is weather in [city name]?" for specific information.`;
+                } else if (targetCity) {
+                  // Find the requested city in data
+                  const cityData = weatherData.data.find((w: WeatherData) => {
+                    const cityName = (w.city_name || w.location).toLowerCase();
+                    return cityName.includes(targetCity!.toLowerCase()) || 
+                           targetCity!.toLowerCase().includes(cityName);
+                  });
+                  
+                  if (cityData) {
+                    const cityName = cityData.city_name || cityData.location;
+                    responseContent = `🌤️ **Weather in ${cityName}:**\n\n`;
+                    responseContent += `🌡️ **Temperature:** ${cityData.temperature.toFixed(1)}°C\n`;
+                    responseContent += `💧 **Humidity:** ${cityData.humidity}%\n`;
+                    responseContent += `☁️ **Condition:** ${cityData.weather_condition}\n`;
+                    responseContent += `🌬️ **Wind Speed:** ${cityData.wind_speed} m/s\n`;
+                    responseContent += `🔽 **Pressure:** ${cityData.pressure} hPa\n\n`;
+                    
+                    // Add contextual advice based on conditions
+                    if (cityData.temperature > 35) {
+                      responseContent += `⚠️ **Heat Advisory:** High temperature detected. Stay hydrated and avoid outdoor activities during peak hours (11 AM - 4 PM).\n`;
+                    } else if (cityData.temperature < 10) {
+                      responseContent += `❄️ **Cold Advisory:** Low temperature detected. Wear warm clothing when going outside.\n`;
+                    }
+                    
+                    if (cityData.humidity > 80) {
+                      responseContent += `💧 **High Humidity:** Muggy conditions. Stay in well-ventilated areas.\n`;
+                    }
+                    
+                    if (cityData.weather_condition.toLowerCase().includes('rain') || 
+                        cityData.weather_condition.toLowerCase().includes('storm')) {
+                      responseContent += `☔ **Precipitation Alert:** Rainy conditions detected. Carry an umbrella and be cautious of waterlogging.\n`;
+                    }
+                    
+                    if (cityData.weather_condition.toLowerCase().includes('haze') || 
+                        cityData.weather_condition.toLowerCase().includes('smoke')) {
+                      responseContent += `🌫️ **Air Quality Alert:** Hazy/smoky conditions. Consider wearing a mask outdoors and limit physical activities.\n`;
+                    }
+                  } else {
+                    responseContent = `❌ **City Not Found**\n\n`;
+                    responseContent += `I couldn't find weather data for "${targetCity}". \n\n`;
+                    responseContent += `📍 **Available Cities:**\n`;
+                    const cities = weatherData.data.map((w: WeatherData) => w.city_name || w.location).filter(Boolean);
+                    responseContent += cities.map((c: string) => `• ${c}`).join('\n');
+                    responseContent += `\n\nPlease ask about one of these cities.`;
+                  }
+                }
+              } else {
+                // Show all cities if no specific location requested
+                responseContent = `🌤️ **Real-time Weather Across India:**\n\n`;
+                responseContent += `Showing weather for all monitored cities. Ask "How is weather in [city]?" for specific details.\n\n`;
+                
+                weatherData.data.forEach((w: WeatherData) => {
+                  const cityName = w.city_name || w.location;
+                  responseContent += `📍 **${cityName}**\n`;
+                  responseContent += `   🌡️ ${w.temperature.toFixed(1)}°C | 💧 ${w.humidity}% | ${w.weather_condition}\n`;
+                  responseContent += `   🌬️ Wind: ${w.wind_speed} m/s | 🔽 Pressure: ${w.pressure} hPa\n\n`;
+                });
+              }
             } else {
               responseContent += `No weather data available at this time.\n`;
             }
           } catch (err) {
-            responseContent = `Unable to fetch weather data. Please try again.\n`;
+            responseContent = `⚠️ Unable to fetch weather data at the moment. Please try again in a few moments.\n\n`;
+            responseContent += `💡 **Tip:** You can ask about specific cities like "How is weather in Mumbai?" or "Temperature in Delhi?"`;
           }
         } else if (isAlertQuery) {
           if (alerts.length > 0) {
-            responseContent = `⚠️ **ACTIVE DISASTER ALERTS:**\n\n`;
-            alerts.forEach(a => {
+            // Filter alerts by requested city if specified
+            let relevantAlerts = alerts;
+            if (isSpecificCity && requestedCity) {
+              relevantAlerts = alerts.filter(a => 
+                a.location.toLowerCase().includes(requestedCity!.toLowerCase()) ||
+                requestedCity!.toLowerCase().includes(a.location.toLowerCase())
+              );
+              
+              if (relevantAlerts.length > 0) {
+                responseContent = `⚠️ **ACTIVE ALERTS FOR ${requestedCity.toUpperCase()}:**\n\n`;
+              } else {
+                responseContent = `✅ **No Alerts for ${requestedCity}**\n\n`;
+                responseContent += `There are currently no active alerts for ${requestedCity}. `;
+                responseContent += `The area appears to be safe at this time.\n\n`;
+                responseContent += `💡 **Tip:** I'm monitoring ${alerts.length} alert${alerts.length > 1 ? 's' : ''} in other regions. `;
+                responseContent += `Ask "What are all the alerts?" to see them.`;
+                relevantAlerts = []; // Clear to prevent display loop
+              }
+            } else {
+              responseContent = `⚠️ **ACTIVE DISASTER ALERTS:**\n\n`;
+            }
+            
+            relevantAlerts.forEach(a => {
               responseContent += `🚨 **${a.alert_level.toUpperCase()} ALERT**\n`;
               responseContent += `📍 Location: ${a.location}\n`;
               responseContent += `⚡ Event: ${a.event_type}\n`;
@@ -355,8 +469,28 @@ export default function PathwayAIChat() {
           }
         } else if (isRiskQuery) {
           if (predictions.length > 0) {
-            responseContent = `🔮 **Disaster Risk Predictions:**\n\n`;
-            predictions.slice(0, 5).forEach(p => {
+            // Filter predictions by requested city if specified
+            let relevantPredictions = predictions;
+            if (isSpecificCity && requestedCity) {
+              relevantPredictions = predictions.filter(p => 
+                p.location.toLowerCase().includes(requestedCity!.toLowerCase()) ||
+                requestedCity!.toLowerCase().includes(p.location.toLowerCase())
+              );
+              
+              if (relevantPredictions.length > 0) {
+                responseContent = `🔮 **Risk Predictions for ${requestedCity}:**\n\n`;
+              } else {
+                responseContent = `✅ **Low Risk in ${requestedCity}**\n\n`;
+                responseContent += `No significant disaster risks detected for ${requestedCity} in the next 24-48 hours.\n\n`;
+                responseContent += `💡 **Tip:** I'm tracking ${predictions.length} prediction${predictions.length > 1 ? 's' : ''} in other areas. `;
+                responseContent += `Ask "What are the risk predictions?" to see all.`;
+                relevantPredictions = []; // Clear to prevent display loop
+              }
+            } else {
+              responseContent = `🔮 **Disaster Risk Predictions:**\n\n`;
+            }
+            
+            relevantPredictions.slice(0, 5).forEach(p => {
               responseContent += `📍 **${p.location}**\n`;
               responseContent += `⚡ Event: ${p.predicted_event_type}\n`;
               responseContent += `📊 Risk: ${(p.risk_score * 100).toFixed(1)}%\n`;
