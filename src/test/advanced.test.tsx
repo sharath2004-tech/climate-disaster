@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import React from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/contexts/AuthContext';
@@ -89,13 +90,15 @@ export function renderWithProviders(
     },
   });
 
-  const Wrapper = ({ children }: { children: React.ReactNode }) => (
-    <BrowserRouter>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>{children}</AuthProvider>
-      </QueryClientProvider>
-    </BrowserRouter>
-  );
+  function Wrapper({ children }: { children: React.ReactNode }) {
+    return (
+      <BrowserRouter>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>{children}</AuthProvider>
+        </QueryClientProvider>
+      </BrowserRouter>
+    );
+  }
 
   return {
     ...render(ui, { wrapper: Wrapper, ...options }),

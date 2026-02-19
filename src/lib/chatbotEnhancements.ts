@@ -97,6 +97,10 @@ class ConversationMemory {
     
     let summary = '';
     
+    if (context.location) {
+      summary += `Location: ${context.location}\n`;
+    }
+    
     if (context.topicHistory && context.topicHistory.length > 0) {
       summary += `Previous topics discussed: ${context.topicHistory.join(', ')}\n`;
     }
@@ -409,50 +413,68 @@ class EntityRecognizer {
   extract(text: string): ExtractedEntity[] {
     const entities: ExtractedEntity[] = [];
     const textLower = text.toLowerCase();
+    const matched = new Set<string>(); // Track matched terms to avoid duplicates
 
-    // Extract disasters
-    this.disasterTypes.forEach(disaster => {
-      if (textLower.includes(disaster)) {
+    // Sort disaster types by length (descending) to match longer phrases first
+    const sortedDisasters = [...this.disasterTypes].sort((a, b) => b.length - a.length);
+
+    // Extract disasters using word boundaries
+    sortedDisasters.forEach(disaster => {
+      const regex = new RegExp(`\\b${disaster}\\b`, 'i');
+      if (regex.test(text) && !matched.has('disaster')) {
         entities.push({
           type: 'disaster',
           value: disaster,
           confidence: 0.9,
         });
+        matched.add('disaster'); // Only match first disaster to avoid duplicates
       }
     });
 
-    // Extract severity
-    this.severityTerms.forEach(severity => {
-      if (textLower.includes(severity)) {
+    // Extract severity using word boundaries
+    for (const severity of this.severityTerms) {
+      const regex = new RegExp(`\\b${severity}\\b`, 'i');
+      if (regex.test(text) && !matched.has('severity')) {
         entities.push({
           type: 'severity',
           value: severity,
           confidence: 0.8,
         });
+        matched.add('severity');
+        break; // Only match first severity
       }
-    });
+    }
 
-    // Extract actions
-    this.actionVerbs.forEach(action => {
-      if (textLower.includes(action)) {
+    // Extract actions using word boundaries
+    for (const action of this.actionVerbs) {
+      const regex = new RegExp(`\\b${action}\\b`, 'i');
+      if (regex.test(text)) {
         entities.push({
           type: 'action',
           value: action,
           confidence: 0.7,
         });
       }
-    });
+    }
 
-    // Extract time indicators
-    this.timeIndicators.forEach(time => {
-      if (textLower.includes(time)) {
-        entities.push({
-          type: 'time',
-          value: time,
-          confidence: 0.8,
-        });
+    // Extract time indicators (only in disaster-related context)
+    // Skip conversational phrases like "How are you today?"
+    const hasDisasterContext = entities.some(e => e.type === 'disaster' || e.type === 'severity' || e.type === 'action');
+    
+    if (hasDisasterContext) {
+      for (const time of this.timeIndicators) {
+        const regex = new RegExp(`\\b${time}\\b`, 'i');
+        if (regex.test(text) && !matched.has('time')) {
+          entities.push({
+            type: 'time',
+            value: time,
+            confidence: 0.8,
+          });
+          matched.add('time');
+          break; // Only match first time indicator
+        }
       }
-    });
+    }
 
     // Extract locations (Indian cities/states - simple pattern)
     const locationPatterns = [
