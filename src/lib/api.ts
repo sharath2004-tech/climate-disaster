@@ -306,6 +306,21 @@ export const emergencyAlertsAPI = {
   getActive: () => apiCall('/emergency-alerts'),
 };
 
+// AI Chat API
+export const aiAPI = {
+  chat: (data: { 
+    message: string; 
+    location?: string; 
+    weatherContext?: Record<string, unknown>; 
+    language?: string; 
+    conversationHistory?: { role: string; content: string }[] 
+  }) =>
+    apiCall('/ai/chat', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, 60000), // 60 second timeout for AI responses
+};
+
 // Admin API
 export const adminAPI = {
   // Dashboard stats

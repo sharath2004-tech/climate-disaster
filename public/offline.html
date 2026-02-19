@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline - Climate Disaster Response</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #e2e8f0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            text-align: center;
+            max-width: 500px;
+        }
+
+        .icon {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 30px;
+            opacity: 0.8;
+        }
+
+        h1 {
+            font-size: 32px;
+            margin-bottom: 16px;
+            color: #f1f5f9;
+        }
+
+        p {
+            font-size: 18px;
+            line-height: 1.6;
+            color: #94a3b8;
+            margin-bottom: 30px;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 14px 32px;
+            background: #0ea5e9;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .button:hover {
+            background: #0284c7;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(14, 165, 233, 0.3);
+        }
+
+        .cached-message {
+            margin-top: 40px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .cached-message h3 {
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: #fbbf24;
+        }
+
+        .cached-message ul {
+            text-align: left;
+            list-style: none;
+            padding-left: 20px;
+        }
+
+        .cached-message li {
+            margin: 8px 0;
+            color: #cbd5e1;
+        }
+
+        .cached-message li:before {
+            content: "✓ ";
+            color: #10b981;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            background: #ef4444;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        .reconnecting {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="#94a3b8"/>
+        </svg>
+
+        <h1>
+            <span class="status-indicator"></span>
+            You're Offline
+        </h1>
+        
+        <p>
+            It looks like you've lost your internet connection. 
+            Some features may be limited, but you can still access cached data.
+        </p>
+
+        <button class="button" onclick="location.reload()">
+            Try Again
+        </button>
+
+        <div class="cached-message">
+            <h3>📦 Available Offline Features:</h3>
+            <ul>
+                <li>View previously loaded emergency alerts</li>
+                <li>Access cached evacuation routes</li>
+                <li>View saved resource locations</li>
+                <li>Browse cached disaster guides</li>
+            </ul>
+        </div>
+
+        <p class="reconnecting" id="reconnecting">
+            Checking connection status...
+        </p>
+    </div>
+
+    <script>
+        // Auto-retry connection
+        let retryCount = 0;
+        const maxRetries = 10;
+        
+        function checkConnection() {
+            if (navigator.onLine) {
+                document.getElementById('reconnecting').textContent = '✓ Connection restored! Reloading...';
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            } else {
+                retryCount++;
+                if (retryCount < maxRetries) {
+                    document.getElementById('reconnecting').textContent = 
+                        `Checking connection... (${retryCount}/${maxRetries})`;
+                    setTimeout(checkConnection, 3000);
+                } else {
+                    document.getElementById('reconnecting').textContent = 
+                        'Still offline. Please check your connection and try again.';
+                }
+            }
+        }
+
+        // Listen for online event
+        window.addEventListener('online', () => {
+            document.getElementById('reconnecting').textContent = '✓ Connection restored! Reloading...';
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        });
+
+        // Start checking
+        setTimeout(checkConnection, 2000);
+    </script>
+</body>
+</html>
