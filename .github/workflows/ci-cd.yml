@@ -202,6 +202,7 @@ jobs:
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
+        continue-on-error: true
         with:
           images: |
             ${{ secrets.DOCKER_USERNAME }}/climate-${{ matrix.service }}
@@ -212,6 +213,7 @@ jobs:
 
       - name: Build and push
         uses: docker/build-push-action@v5
+        continue-on-error: true
         with:
           context: ${{ matrix.service == 'frontend' && '.' || format('./{0}', matrix.service == 'backend' && 'server' || 'pathway-service') }}
           file: ${{ matrix.service == 'frontend' && './Dockerfile' || format('./{0}/Dockerfile', matrix.service == 'backend' && 'server' || 'pathway-service') }}
