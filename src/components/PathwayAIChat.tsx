@@ -265,12 +265,14 @@ export default function PathwayAIChat() {
       const isRiskQuery = /risk|prediction|hazard|threat/i.test(query);
       const isSafetyQuery = /safe|shelter|evacuat|location/i.test(query);
       
-      // Extract specific location mentions
-      const locationMatch = query.match(/(?:in|at|near|for)\s+([a-z\s]+?)(?:\s|$|,|\.|\?)/i);
+      // Check for personal location queries first (my city, my location, etc.)
       const isMyLocationQuery = /my city|my location|my area|here|where i am/i.test(query);
+      
+      // Extract specific location mentions (only if NOT a personal query)
+      const locationMatch = !isMyLocationQuery ? query.match(/(?:in|at|near|for)\s+([a-z\s]+?)(?:\s|$|,|\.|\?)/i) : null;
       const isSpecificCity = locationMatch || isMyLocationQuery;
       
-      // Extract city name if mentioned
+      // Extract city name if mentioned (skip for personal location queries)
       let requestedCity = locationMatch ? locationMatch[1].trim() : null;
       
       // Normalize common city names
