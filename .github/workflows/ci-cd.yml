@@ -221,7 +221,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # Job 8: Deploy to Vercel (Frontend)
+  # Job 8: Deploy to Vercel (Frontend) - Optional if Vercel is configured
   deploy-vercel:
     name: Deploy to Vercel
     runs-on: ubuntu-latest
@@ -239,6 +239,7 @@ jobs:
 
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25
+        continue-on-error: true
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
@@ -266,7 +267,7 @@ jobs:
             echo "Deploy hook not configured for ${{ matrix.service }}, skipping..."
           fi
 
-  # Job 10: Lighthouse Performance Check
+  # Job 10: Lighthouse Performance Check (optional - only if Vercel is deployed)
   lighthouse:
     name: Lighthouse Performance Audit
     runs-on: ubuntu-latest
@@ -278,6 +279,7 @@ jobs:
 
       - name: Run Lighthouse CI
         uses: treosh/lighthouse-ci-action@v10
+        continue-on-error: true
         with:
           urls: |
             https://skynetra.vercel.app
@@ -286,7 +288,7 @@ jobs:
           uploadArtifacts: true
           temporaryPublicStorage: true
 
-  # Job 11: Notify on Discord/Slack
+  # Job 11: Notify on Discord/Slack (optional)
   notify:
     name: Send Deployment Notification
     runs-on: ubuntu-latest
@@ -295,6 +297,7 @@ jobs:
     steps:
       - name: Discord notification
         uses: sarisia/actions-status-discord@v1
+        continue-on-error: true
         if: always()
         with:
           webhook: ${{ secrets.DISCORD_WEBHOOK }}
