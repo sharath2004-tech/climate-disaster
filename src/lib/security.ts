@@ -349,7 +349,7 @@ export function addSecurityHeaders(headers: HeadersInit = {}): HeadersInit {
 export function validateAPIResponse(response: any): boolean {
   // Check for SQL injection attempts in response
   const suspiciousPatterns = [
-    /'|(\\')|(--)|(\\")|(\\\\")|;|(?:OR|AND)\s+\d+\s*=\s*\d+/gi,
+    /['\\]|--|;|(?:OR|AND)\s+\d+\s*=\s*\d+/gi,
     /<script[^>]*>.*?<\/script>/gi,
   ];
 

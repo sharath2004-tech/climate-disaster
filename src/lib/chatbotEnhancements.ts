@@ -420,7 +420,8 @@ class EntityRecognizer {
 
     // Extract disasters using word boundaries
     sortedDisasters.forEach(disaster => {
-      const escapedDisaster = disaster.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // Escape special regex characters
+      const escapedDisaster = disaster.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&');
       const regex = new RegExp(`\\b${escapedDisaster}\\b`, 'i');
       if (regex.test(text) && !matchedDisasters.has(disaster)) {
         entities.push({
@@ -435,7 +436,7 @@ class EntityRecognizer {
     // Extract severity using word boundaries
     const matchedSeverity = new Set<string>();
     for (const severity of this.severityTerms) {
-      const escapedSeverity = severity.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const escapedSeverity = severity.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&');
       const regex = new RegExp(`\\b${escapedSeverity}\\b`, 'i');
       if (regex.test(text) && !matchedSeverity.has(severity)) {
         entities.push({
@@ -451,7 +452,7 @@ class EntityRecognizer {
     // Extract actions using word boundaries
     const matchedActions = new Set<string>();
     for (const action of this.actionVerbs) {
-      const escapedAction = action.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const escapedAction = action.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&');
       const regex = new RegExp(`\\b${escapedAction}\\b`, 'i');
       if (regex.test(text) && !matchedActions.has(action)) {
         entities.push({
@@ -470,7 +471,7 @@ class EntityRecognizer {
     if (hasDisasterContext) {
       const matchedTimes = new Set<string>();
       for (const time of this.timeIndicators) {
-        const escapedTime = time.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const escapedTime = time.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&');
         const regex = new RegExp(`\\b${escapedTime}\\b`, 'i');
         if (regex.test(text) && !matchedTimes.has(time)) {
           entities.push({
