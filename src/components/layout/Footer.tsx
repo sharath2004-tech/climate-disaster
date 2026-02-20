@@ -1,5 +1,5 @@
+import { Facebook, Instagram, Linkedin, Mail, MapPin, Phone, Shield, Twitter } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Shield, Mail, Phone, MapPin, Twitter, Facebook, Instagram, Linkedin } from "lucide-react";
 
 const footerLinks = {
   platform: [
@@ -23,10 +23,10 @@ const footerLinks = {
 };
 
 const socialLinks = [
-  { icon: Twitter, href: "#", label: "Twitter" },
-  { icon: Facebook, href: "#", label: "Facebook" },
-  { icon: Instagram, href: "#", label: "Instagram" },
-  { icon: Linkedin, href: "#", label: "LinkedIn" },
+  { icon: Twitter, href: "https://twitter.com/skynetra", label: "Twitter" },
+  { icon: Facebook, href: "https://facebook.com/skynetra", label: "Facebook" },
+  { icon: Instagram, href: "https://www.instagram.com/sharath___30", label: "Instagram" },
+  { icon: Linkedin, href: "https://www.linkedin.com/in/sharath-goud-037667268", label: "LinkedIn" },
 ];
 
 export function Footer() {
@@ -48,15 +48,15 @@ export function Footer() {
             <div className="space-y-3 text-sm text-muted-foreground">
               <p className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-primary" />
-                support@skynetra.com
+                2004sharath@gmail.com
               </p>
               <p className="flex items-center gap-2">
                 <Phone className="w-4 h-4 text-primary" />
-                +91 1800 123 4567
+                +91 6305352434
               </p>
               <p className="flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-primary" />
-                Mumbai, India
+                Chandigarh, India
               </p>
             </div>
           </div>
@@ -118,6 +118,8 @@ export function Footer() {
                 <a
                   key={social.label}
                   href={social.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="w-10 h-10 rounded-full flex items-center justify-center glass text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
                   aria-label={social.label}
                 >
