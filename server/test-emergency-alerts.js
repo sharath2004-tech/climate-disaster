@@ -7,8 +7,8 @@
  * Run with: node server/test-emergency-alerts.js
  */
 
-import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import mongoose from 'mongoose';
 import EmergencyAlert from './models/EmergencyAlert.js';
 
 dotenv.config();

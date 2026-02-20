@@ -7,8 +7,8 @@
  * Run with: node server/disable-all-alerts.js
  */
 
-import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import mongoose from 'mongoose';
 import EmergencyAlert from './models/EmergencyAlert.js';
 
 dotenv.config();
