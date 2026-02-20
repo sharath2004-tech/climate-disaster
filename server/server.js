@@ -44,11 +44,14 @@ const allowedOrigins = [
   'http://localhost:8081',
   'https://skynetra.vercel.app',
   'https://climate-disaster.vercel.app',
+  'https://climate-disaster.onrender.com',
+  'https://climate-disaster-latest.onrender.com',
   // Vercel preview deployments
   /^https:\/\/.*\.vercel\.app$/,
-  // ADD YOUR PRODUCTION DOMAINS HERE:
-  // 'https://your-app.vercel.app',
-  // 'https://your-app.netlify.app',
+  // Render.com deployments
+  /^https:\/\/.*\.onrender\.com$/,
+  // Netlify deployments
+  /^https:\/\/.*\.netlify\.app$/,
 ];
 
 app.use(

@@ -1,7 +1,7 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 // Helper function for API calls with timeout and retry support
-async function apiCall(endpoint: string, options: RequestInit = {}, timeout = 60000) {
+async function apiCall(endpoint: string, options: RequestInit = {}, timeout = 60000, retries = 2) {
   const token = localStorage.getItem('token');
   
   const headers: HeadersInit = {
@@ -13,34 +13,61 @@ async function apiCall(endpoint: string, options: RequestInit = {}, timeout = 60
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  // Create abort controller for timeout
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  // Retry logic for cold starts (Render free tier)
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-  try {
-    const response = await fetch(`${API_URL}${endpoint}`, {
-      ...options,
-      headers,
-      signal: controller.signal,
-    });
+    try {
+      const response = await fetch(`${API_URL}${endpoint}`, {
+        ...options,
+        headers,
+        signal: controller.signal,
+      });
 
-    clearTimeout(timeoutId);
+      clearTimeout(timeoutId);
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'An error occurred' }));
-      throw new Error(error.error || 'Request failed');
+      // Handle authentication errors
+      if (response.status === 401) {
+        // Clear invalid token
+        localStorage.removeItem('token');
+        // Only throw error if it's not a login attempt
+        if (!endpoint.includes('/auth/login')) {
+          throw new Error('Session expired. Please login again.');
+        }
+      }
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'An error occurred' }));
+        throw new Error(error.error || `Request failed with status ${response.status}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      clearTimeout(timeoutId);
+      
+      // If it's the last attempt, throw the error
+      if (attempt === retries) {
+        if (error instanceof Error) {
+          // Better error messages for common issues
+          if (error.name === 'AbortError') {
+            throw new Error('Request timeout - backend is waking up (free tier), please wait 15-30 seconds and try again');
+          }
+          if (error.message.includes('Failed to fetch')) {
+            throw new Error('Network error - Check your internet connection or backend may be down');
+          }
+        }
+        throw error;
+      }
+      
+      // Wait before retrying (exponential backoff)
+      const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      console.log(`Retrying request (attempt ${attempt + 2}/${retries + 1})...`);
     }
-
-    return response.json();
-  } catch (error) {
-    clearTimeout(timeoutId);
-    
-    // Better error messages for common issues
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error('Request timeout - backend may be waking up, please retry in a moment');
-    }
-    throw error;
   }
+  
+  throw new Error('Max retries exceeded');
 }
 
 // Auth API

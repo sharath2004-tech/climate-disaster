@@ -143,7 +143,7 @@ function cacheFirstStrategy(request) {
  * Good for: API requests, dynamic content
  */
 function networkFirstStrategy(request) {
-  const timeout = 5000; // 5 second timeout
+  const timeout = 10000; // 10 second timeout for slow backends
 
   return Promise.race([
     fetch(request),
@@ -152,8 +152,8 @@ function networkFirstStrategy(request) {
     )
   ])
     .then((response) => {
-      // Cache successful responses
-      if (response && response.status === 200) {
+      // Only cache GET requests with successful responses
+      if (response && response.status === 200 && request.method === 'GET') {
         const responseToCache = response.clone();
         caches.open(RUNTIME_CACHE).then((cache) => {
           cache.put(request, responseToCache);
@@ -162,17 +162,21 @@ function networkFirstStrategy(request) {
       return response;
     })
     .catch(() => {
-      // If network fails, try cache
-      return caches.match(request).then((cachedResponse) => {
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-        // Return offline page for navigation requests
-        if (request.mode === 'navigate') {
-          return caches.match('/offline.html');
-        }
-        throw new Error('No cached response available');
-      });
+      // If network fails, try cache ONLY for GET requests
+      if (request.method === 'GET') {
+        return caches.match(request).then((cachedResponse) => {
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+          // Return offline page for navigation requests
+          if (request.mode === 'navigate') {
+            return caches.match('/offline.html');
+          }
+          throw new Error('No cached response available');
+        });
+      }
+      // For POST/PUT/DELETE, just fail without caching
+      throw new Error('Network request failed');
     });
 }
 
