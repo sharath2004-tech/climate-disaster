@@ -397,6 +397,12 @@ export const adminAPI = {
       method: 'PATCH',
     }),
 
+  toggleEmergencyAlertNotifications: (id: string, enabled: boolean) =>
+    apiCall(`/admin/emergency-alert/${id}/notifications`, {
+      method: 'PATCH',
+      body: JSON.stringify({ enabled }),
+    }),
+
   // Community posts management
   getCommunityPosts: (params?: { limit?: number; page?: number }) => {
     const queryParams = new URLSearchParams(params as Record<string, string>).toString();

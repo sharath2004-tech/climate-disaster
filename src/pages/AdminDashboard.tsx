@@ -21,6 +21,7 @@ import {
     Activity,
     AlertTriangle,
     Bell,
+    BellOff,
     FileWarning,
     Loader2,
     MapPin,
@@ -28,7 +29,8 @@ import {
     Send,
     Shield,
     UserPlus,
-    Users
+    Users,
+    X
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -49,6 +51,25 @@ interface ActivityItem {
   createdAt: string;
 }
 
+interface EmergencyAlert {
+  _id: string;
+  title: string;
+  message: string;
+  severity: string;
+  status: string;
+  notificationsEnabled: boolean;
+  affectedRadius: number;
+  targetLocation: {
+    address?: string;
+    city?: string;
+  };
+  actionRequired: string;
+  issuedBy: {
+    name: string;
+  };
+  createdAt: string;
+}
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
@@ -57,6 +78,11 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Emergency alerts management
+  const [emergencyAlerts, setEmergencyAlerts] = useState<EmergencyAlert[]>([]);
+  const [isLoadingAlerts, setIsLoadingAlerts] = useState(false);
+  const [togglingNotifications, setTogglingNotifications] = useState<Set<string>>(new Set());
 
   // Sub-admin form
   const [showSubAdminForm, setShowSubAdminForm] = useState(false);
@@ -86,6 +112,71 @@ export default function AdminDashboard() {
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
 
   // Detect live location with address
+  // Load emergency alerts
+  const loadEmergencyAlerts = async () => {
+    try {
+      setIsLoadingAlerts(true);
+      const alerts = await adminAPI.getEmergencyAlerts('active');
+      setEmergencyAlerts(alerts);
+    } catch (error: any) {
+      console.error('Failed to load emergency alerts:', error);
+    } finally {
+      setIsLoadingAlerts(false);
+    }
+  };
+
+  // Toggle notifications for an alert
+  const toggleNotifications = async (alertId: string, currentState: boolean) => {
+    try {
+      setTogglingNotifications(prev => new Set([...prev, alertId]));
+      
+      await adminAPI.toggleEmergencyAlertNotifications(alertId, !currentState);
+      
+      toast({
+        title: "Success",
+        description: `Notifications ${!currentState ? 'enabled' : 'disabled'} for alert`,
+      });
+      
+      // Refresh alerts
+      await loadEmergencyAlerts();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to toggle notifications",
+        variant: "destructive",
+      });
+    } finally {
+      setTogglingNotifications(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(alertId);
+        return newSet;
+      });
+    }
+  };
+
+  // Cancel alert
+  const cancelAlert = async (alertId: string) => {
+    try {
+      await adminAPI.cancelEmergencyAlert(alertId);
+      
+      toast({
+        title: "Success",
+        description: "Alert cancelled successfully",
+      });
+      
+      // Refresh alerts and stats
+      await loadEmergencyAlerts();
+      const newStats = await adminAPI.getStats();
+      setStats(newStats);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to cancel alert",
+        variant: "destructive",
+      });
+    }
+  };
+
   const detectLocation = async () => {
     if (!navigator.geolocation) {
       toast({
@@ -183,6 +274,7 @@ export default function AdminDashboard() {
         ]);
         setStats(statsData);
         setActivity(activityData);
+        await loadEmergencyAlerts();
       } catch (error: any) {
         toast({
           title: "Error",
@@ -269,9 +361,10 @@ export default function AdminDashboard() {
       });
       setShowAlertForm(false);
 
-      // Refresh stats
+      // Refresh stats and alerts
       const newStats = await adminAPI.getStats();
       setStats(newStats);
+      await loadEmergencyAlerts();
     } catch (error: any) {
       toast({
         title: "Error",
@@ -559,6 +652,127 @@ export default function AdminDashboard() {
             </form>
           </GlassCard>
         )}
+
+        {/* Active Emergency Alerts Management */}
+        <GlassCard>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-red-400" />
+              <h2 className="text-lg font-semibold text-foreground">Active Emergency Alerts</h2>
+            </div>
+            <Button
+              onClick={loadEmergencyAlerts}
+              variant="outline"
+              size="sm"
+              disabled={isLoadingAlerts}
+            >
+              {isLoadingAlerts ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Refresh'}
+            </Button>
+          </div>
+          
+          {isLoadingAlerts ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          ) : emergencyAlerts.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">No active emergency alerts</p>
+          ) : (
+            <div className="space-y-3">
+              {emergencyAlerts.map((alert) => (
+                <div
+                  key={alert._id}
+                  className={cn(
+                    "p-4 rounded-lg border",
+                    alert.severity === 'critical' || alert.severity === 'evacuation'
+                      ? "bg-red-500/10 border-red-500/30"
+                      : alert.severity === 'warning'
+                      ? "bg-amber-500/10 border-amber-500/30"
+                      : "bg-blue-500/10 border-blue-500/30"
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-2">
+                        <span className={cn(
+                          "px-2 py-0.5 text-xs font-semibold rounded uppercase",
+                          alert.severity === 'critical' || alert.severity === 'evacuation'
+                            ? "bg-red-500 text-white"
+                            : alert.severity === 'warning'
+                            ? "bg-amber-500 text-white"
+                            : "bg-blue-500 text-white"
+                        )}>
+                          {alert.severity}
+                        </span>
+                        <span className="px-2 py-0.5 text-xs font-semibold rounded uppercase bg-muted">
+                          {alert.actionRequired.replace('-', ' ')}
+                        </span>
+                        {alert.notificationsEnabled ? (
+                          <span className="flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded bg-green-500/20 text-green-400">
+                            <Bell className="w-3 h-3" />
+                            Notifications ON
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded bg-gray-500/20 text-gray-400">
+                            <BellOff className="w-3 h-3" />
+                            Notifications OFF
+                          </span>
+                        )}
+                      </div>
+                      
+                      <h3 className="font-semibold text-foreground mb-1">{alert.title}</h3>
+                      <p className="text-sm text-muted-foreground mb-2">{alert.message}</p>
+                      
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        {alert.targetLocation?.city && (
+                          <span className="flex items-center gap-1">
+                            <MapPin className="w-3 h-3" />
+                            {alert.targetLocation.city} ({alert.affectedRadius}km radius)
+                          </span>
+                        )}
+                        <span className="flex items-center gap-1">
+                          <Shield className="w-3 h-3" />
+                          {alert.issuedBy?.name}
+                        </span>
+                        <span>{formatTimeAgo(alert.createdAt)}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2 flex-shrink-0">
+                      <Button
+                        onClick={() => toggleNotifications(alert._id, alert.notificationsEnabled)}
+                        variant={alert.notificationsEnabled ? "destructive" : "default"}
+                        size="sm"
+                        disabled={togglingNotifications.has(alert._id)}
+                      >
+                        {togglingNotifications.has(alert._id) ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : alert.notificationsEnabled ? (
+                          <>
+                            <BellOff className="w-4 h-4 mr-1" />
+                            Stop
+                          </>
+                        ) : (
+                          <>
+                            <Bell className="w-4 h-4 mr-1" />
+                            Start
+                          </>
+                        )}
+                      </Button>
+                      
+                      <Button
+                        onClick={() => cancelAlert(alert._id)}
+                        variant="outline"
+                        size="sm"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </GlassCard>
 
         {/* Activity Feed */}
         <GlassCard>
