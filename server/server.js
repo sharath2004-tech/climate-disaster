@@ -135,12 +135,18 @@ app.get('/api/emergency-alerts', async (req, res) => {
   try {
     const alerts = await EmergencyAlert.find({ 
       status: 'active',
-      notificationsEnabled: { $ne: false } // Only show alerts with notifications enabled
+      $or: [
+        { notificationsEnabled: true },           // Explicitly enabled
+        { notificationsEnabled: { $exists: false } } // Or field doesn't exist (backwards compatibility)
+      ]
     })
       .populate('issuedBy', 'name')
       .sort({ createdAt: -1 });
 
-    res.status(200).json(alerts);
+    // Additional filter to exclude alerts where notificationsEnabled is explicitly false
+    const filteredAlerts = alerts.filter(alert => alert.notificationsEnabled !== false);
+
+    res.status(200).json(filteredAlerts);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to fetch alerts' });
