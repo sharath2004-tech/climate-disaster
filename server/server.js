@@ -133,7 +133,10 @@ app.use('/api/admin', adminRoutes);
 -------------------------------------------------- */
 app.get('/api/emergency-alerts', async (req, res) => {
   try {
-    const alerts = await EmergencyAlert.find({ status: 'active' })
+    const alerts = await EmergencyAlert.find({ 
+      status: 'active',
+      notificationsEnabled: { $ne: false } // Only show alerts with notifications enabled
+    })
       .populate('issuedBy', 'name')
       .sort({ createdAt: -1 });
 

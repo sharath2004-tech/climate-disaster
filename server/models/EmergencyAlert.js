@@ -54,6 +54,10 @@ const emergencyAlertSchema = new mongoose.Schema({
     enum: ['active', 'expired', 'cancelled'],
     default: 'active',
   },
+  notificationsEnabled: {
+    type: Boolean,
+    default: true, // Notifications are enabled by default when alert is created
+  },
   expiresAt: {
     type: Date,
   },

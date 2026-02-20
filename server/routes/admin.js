@@ -257,6 +257,36 @@ router.patch('/emergency-alert/:id/cancel', auth, adminAuth, async (req, res) =>
 });
 
 /**
+ * Toggle notifications for emergency alert
+ * PATCH /api/admin/emergency-alert/:id/notifications
+ */
+router.patch('/emergency-alert/:id/notifications', auth, adminAuth, async (req, res) => {
+  try {
+    const { enabled } = req.body;
+    
+    const alert = await EmergencyAlert.findByIdAndUpdate(
+      req.params.id,
+      { 
+        notificationsEnabled: enabled,
+        updatedAt: new Date() 
+      },
+      { new: true }
+    ).populate('issuedBy', 'name role');
+    
+    if (!alert) {
+      return res.status(404).json({ error: 'Alert not found' });
+    }
+    
+    res.json({ 
+      message: `Notifications ${enabled ? 'enabled' : 'disabled'} for emergency alert`,
+      alert 
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * Get all community posts for moderation
  * GET /api/admin/community-posts
  */
