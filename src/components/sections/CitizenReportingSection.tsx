@@ -12,12 +12,10 @@ import { AlertCircle, Camera, CheckCircle, FileWarning, Loader2, MapPin, Send } 
 import { useState } from "react";
 
 const incidentTypes = [
-  { value: "flood", label: "Flooding" },
-  { value: "road_blockage", label: "Road Blockage" },
-  { value: "power_outage", label: "Power Outage" },
-  { value: "structural_damage", label: "Damaged Structure" },
-  { value: "fire", label: "Fire" },
-  { value: "landslide", label: "Landslide" },
+  { value: "hazard", label: "Hazard" },
+  { value: "incident", label: "Incident" },
+  { value: "infrastructure-damage", label: "Infrastructure Damage" },
+  { value: "resource-need", label: "Resource Need" },
   { value: "other", label: "Other" },
 ];
 
@@ -76,15 +74,11 @@ export function CitizenReportingSection() {
         title: `${incidentTypes.find(t => t.value === formData.type)?.label || formData.type} Report`,
         description: formData.description,
         severity: formData.severity,
-        location: {
+        location: userLocation ? {
+          type: "Point",
+          coordinates: [userLocation.lng, userLocation.lat],
           address: formData.location,
-          ...(userLocation && {
-            coordinates: {
-              type: "Point",
-              coordinates: [userLocation.lng, userLocation.lat],
-            },
-          }),
-        },
+        } : undefined,
       };
 
       await reportsAPI.create(reportData);
@@ -100,6 +94,7 @@ export function CitizenReportingSection() {
       // Reset form after 3 seconds
       setTimeout(() => {
         setSubmitted(false);
+        setUserLocation(null);
         setFormData({
           type: "",
           description: "",
@@ -234,7 +229,7 @@ export function CitizenReportingSection() {
                   <Button
                     type="submit"
                     className="w-full h-12 text-base font-medium gap-2 bg-primary hover:bg-primary/90 text-primary-foreground"
-                    disabled={isLoading || !formData.type || !formData.description}
+                    disabled={isLoading || !formData.type || !formData.description || !userLocation}
                   >
                     {isLoading ? (
                       <>
@@ -248,6 +243,11 @@ export function CitizenReportingSection() {
                       </>
                     )}
                   </Button>
+                  {!userLocation && formData.type && formData.description && (
+                    <p className="text-xs text-destructive text-center -mt-2">
+                      Please detect your location before submitting
+                    </p>
+                  )}
                 </form>
               )}
             </GlassCard>
