@@ -133,6 +133,21 @@ const useTextToSpeech = () => {
   return { isSpeaking, speak, stopSpeaking };
 };
 
+// Simple markdown parser for basic formatting
+const parseMarkdown = (text: string): string => {
+  return text
+    // Bold: **text** or __text__
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/__(.+?)__/g, '<strong>$1</strong>')
+    // Italic: *text* or _text_
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+    .replace(/_([^_]+)_/g, '<em>$1</em>')
+    // Line breaks
+    .replace(/\n/g, '<br/>')
+    // Lists: - item
+    .replace(/^- (.+)$/gm, '• $1');
+};
+
 export default function PathwayAIChat() {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -722,9 +737,10 @@ export default function PathwayAIChat() {
                     : 'bg-gray-100 text-gray-900'
                 }`}
               >
-                <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                  {message.content}
-                </div>
+                <div 
+                  className="text-sm leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: parseMarkdown(message.content) }}
+                />
                 <div className="text-xs opacity-70 mt-2">
                   {message.timestamp.toLocaleTimeString()}
                 </div>
