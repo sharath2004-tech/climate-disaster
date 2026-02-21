@@ -39,12 +39,18 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 COHERE_API_KEY = os.getenv("COHERE_API_KEY", "")
 PORT = int(os.getenv("PORT", 8080))
 
-# Sample monitored locations
+# Sample monitored locations - Major Indian Cities
 monitored_locations = [
-    {"name": "New York", "lat": 40.7128, "lon": -74.0060},
-    {"name": "Los Angeles", "lat": 34.0522, "lon": -118.2437},
-    {"name": "Chicago", "lat": 41.8781, "lon": -87.6298},
-    {"name": "Miami", "lat": 25.7617, "lon": -80.1918},
+    {"name": "Delhi", "lat": 28.6139, "lon": 77.2090},
+    {"name": "Chandigarh", "lat": 30.7333, "lon": 76.7794},
+    {"name": "Mumbai", "lat": 19.0760, "lon": 72.8777},
+    {"name": "Ahmedabad", "lat": 23.0225, "lon": 72.5714},
+    {"name": "Kolkata", "lat": 22.5726, "lon": 88.3639},
+    {"name": "Guwahati", "lat": 26.1445, "lon": 91.7362},
+    {"name": "Bengaluru", "lat": 12.9716, "lon": 77.5946},
+    {"name": "Chennai", "lat": 13.0827, "lon": 80.2707},
+    {"name": "Hyderabad", "lat": 17.3850, "lon": 78.4867},
+    {"name": "Bhopal", "lat": 23.2599, "lon": 77.4126},
 ]
 
 # In-memory cache
@@ -195,12 +201,25 @@ def build_system_prompt(weather_context=None):
 - Evacuation recommendations
 - Resource location information
 
+MONITORED LOCATIONS (10 Indian cities with real-time weather):
+1. Delhi
+2. Chandigarh
+3. Mumbai
+4. Ahmedabad
+5. Kolkata
+6. Guwahati
+7. Bengaluru
+8. Chennai
+9. Hyderabad
+10. Bhopal
+
 Guidelines:
 1. Be concise but comprehensive
 2. Always include emergency numbers when relevant
 3. Prioritize safety above all
 4. Use emojis for better readability
 5. If asked about current conditions, use the provided real-time data
+6. When asked about monitored locations, list EXACTLY the 10 cities above
 
 Emergency Numbers (India):
 - Emergency: 112
