@@ -112,8 +112,11 @@ This platform now includes enterprise-grade features for reliable production dep
 ### **APIs & Services**
 - 🗺️ **Mapbox API** - Maps and geocoding
 - 🌤️ **OpenWeather API** - Weather data
-- 🤖 **Hugging Face API** - AI chatbot
+- 🤖 **OpenRouter API** - AI chatbot with multiple LLM models
+- 🧠 **Cohere API** - Advanced AI features and embeddings
+- 🤗 **Hugging Face API** - Additional AI models
 - 📊 **Chart.js** - Data visualization
+- 🔄 **Pathway Service** - Real-time data streaming and analytics
 
 ### **DevOps & Reliability** 🆕
 - 🐳 **Docker** - Containerization
@@ -141,7 +144,9 @@ You'll need to obtain free API keys from:
 1. **MongoDB Atlas** - [Get Started](https://www.mongodb.com/cloud/atlas/register)
 2. **Mapbox** - [Sign up](https://account.mapbox.com/auth/signup/)
 3. **OpenWeather** - [API Keys](https://home.openweathermap.org/api_keys)
-4. **Hugging Face** (optional for AI) - [Access Tokens](https://huggingface.co/settings/tokens)
+4. **OpenRouter** (for AI chatbot) - [Get API Key](https://openrouter.ai/keys)
+5. **Cohere** (for AI features) - [API Keys](https://dashboard.cohere.com/api-keys)
+6. **Hugging Face** (optional for AI) - [Access Tokens](https://huggingface.co/settings/tokens)
 
 ---
 
@@ -185,9 +190,16 @@ NODE_ENV=development
 FRONTEND_URL=http://localhost:5173
 
 # AI & API Keys
+# Get OpenRouter key from: https://openrouter.ai/keys
+# Get Cohere key from: https://dashboard.cohere.com/api-keys
+VITE_OPENROUTER_API_KEY=your_openrouter_api_key_here
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+VITE_COHERE_API_KEY=your_cohere_api_key_here
+COHERE_API_KEY=your_cohere_api_key_here
 VITE_HUGGINGFACE_API_KEY=your_huggingface_api_key_here
 VITE_MAPBOX_TOKEN=your_mapbox_token_here
 VITE_WEATHER_API_KEY=your_weather_api_key_here
+OPENWEATHER_API_KEY=your_openweather_api_key_here
 ```
 
 > ⚠️ **Security Note**: Never commit your `.env` file to version control!
@@ -437,6 +449,131 @@ curl https://your-backend.onrender.com/health
 
 ---
 
+## 🔌 Pathway Service API Endpoints
+
+The Pathway service provides real-time data streaming and analytics through RESTful API endpoints.
+
+### Base URL
+```
+Local: http://localhost:8080
+Production: https://your-pathway-service.onrender.com
+```
+
+### Available Endpoints
+
+#### 📡 **Weather Data**
+```http
+GET /api/v1/weather
+```
+Returns real-time weather data for monitored locations.
+
+**Response:**
+```json
+{
+  "status": "success",
+  "data": [
+    {
+      "location": "Delhi",
+      "temperature": 28.5,
+      "humidity": 65,
+      "conditions": "Clear",
+      "timestamp": "2026-02-21T10:30:00Z"
+    }
+  ]
+}
+```
+
+#### ⚠️ **Risk Predictions**
+```http
+GET /api/v1/risk-predictions
+```
+Returns AI-powered disaster risk predictions.
+
+#### 🚨 **Emergency Alerts**
+```http
+GET /api/v1/alerts
+```
+Returns active emergency alerts and warnings.
+
+#### 🏥 **Evacuation Shelters**
+```http
+GET /api/v1/shelters
+GET /api/v1/evacuation/shelters
+```
+Returns available emergency shelters and their capacity.
+
+#### 🗺️ **Evacuation Routes**
+```http
+POST /api/v1/evacuation-route
+POST /api/v1/evacuation/route
+```
+Calculates optimal evacuation route from current to destination.
+
+**Request Body:**
+```json
+{
+  "start": {"lat": 40.7580, "lon": -73.9855},
+  "end": {"lat": 40.7489, "lon": -73.9680}
+}
+```
+
+#### 📢 **Citizen Reports**
+```http
+GET  /api/v1/citizen-reports
+POST /api/v1/citizen-reports
+GET  /api/v1/reports
+POST /api/v1/reports
+```
+Submit and retrieve citizen-reported incidents.
+
+#### 💬 **AI Chat**
+```http
+POST /api/v1/chat
+```
+AI-powered emergency assistance chatbot.
+
+**Request Body:**
+```json
+{
+  "message": "What should I do during an earthquake?",
+  "context": {"location": "Delhi"}
+}
+```
+
+#### 📊 **System Statistics**
+```http
+GET /api/v1/stats
+```
+Returns platform statistics and metrics.
+
+#### 🔄 **Refresh Data**
+```http
+POST /api/v1/refresh
+```
+Manually trigger data refresh for weather and predictions.
+
+### Starting the Pathway Service
+
+```bash
+# Navigate to pathway service directory
+cd pathway-service
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Set environment variables
+export OPENWEATHER_API_KEY=your_key_here
+export OPENROUTER_API_KEY=your_key_here
+export COHERE_API_KEY=your_key_here
+
+# Start the service
+python simple_api_server.py
+# Or with advanced features (requires Pathway)
+python api_server.py
+```
+
+---
+
 ## 🧪 Testing
 
 ```bash
@@ -475,15 +612,11 @@ Contributions are welcome! Please follow these steps:
 | `FRONTEND_URL` | Frontend URL for CORS | ❌ | http://localhost:5173 |
 | `VITE_MAPBOX_TOKEN` | Mapbox API token | ✅ | - |
 | `VITE_WEATHER_API_KEY` | OpenWeather API key | ✅ | - |
-| `VITE_HUGGINGFACE_API_KEY` | HuggingFace API key | ❌ | - |
-
----
-
-## 🐛 Troubleshooting
-
-Having issues? We've got you covered! 
-
-📖 **See [TROUBLESHOOTING.md](TROUBLESHOOTING.md)** for comprehensive solutions to:
+| `OPENWEATHER_API_KEY` | OpenWeather API key (backend) | ✅ | - |
+| `VITE_OPENROUTER_API_KEY` | OpenRouter API key (frontend) | ✅ | - |
+| `OPENROUTER_API_KEY` | OpenRouter API key (backend) | ✅ | - |
+| `VITE_COHERE_API_KEY` | Cohere API key (frontend) | ✅ | - |
+| `COHERE_API_KEY` | Cohere API key (backend) | ✅ | - |
 
 - Failed to fetch / Network errors
 - 401 Unauthorized / Authentication issues
