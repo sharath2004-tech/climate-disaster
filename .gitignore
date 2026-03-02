@@ -18,7 +18,17 @@ dist-ssr
 .env.production
 .env.*.local
 server/.env
-pathway-service/.env.example
+pathway-service/.env
+
+# Test and check scripts (for development only)
+test-*.js
+test-*.ps1
+test-*.sh
+check-*.ps1
+check-*.sh
+
+# Alternative package manager lock files
+bun.lockb
 
 # Editor directories and files
 .vscode/*

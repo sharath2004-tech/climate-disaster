@@ -59,7 +59,7 @@ export function Footer() {
                 Chandigarh, India
               </p>
             </div>
-          </div>
+          </div> 
 
           {/* Platform Links */}
           <div>
