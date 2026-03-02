@@ -233,7 +233,7 @@ npm run dev:frontend
 
 ### 6️⃣ Access the Application
 
-- **Frontend**: skynetra.vercel.app
+- **Frontend**: https://skynetra.vercel.app
 - **Backend API**: https://climate-disaster.onrender.com/
 - **API Documentation**: http://localhost:3001/api
 
